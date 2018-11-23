@@ -14,7 +14,6 @@ using namespace std;
 
 #import "byte_bit_stream.hpp"
 #import "rice.hpp"
-#import "rice_parallel.hpp"
 
 #define EMIT_CACHEDBITS_DEBUG_OUTPUT
 #import "CachedBits.hpp"

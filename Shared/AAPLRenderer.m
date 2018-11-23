@@ -447,8 +447,6 @@ blockOptimalKTableData:blockOptimalKTableData
         blockHeight += 1;
       }
       
-      // FIXME: block width and height to be a multiple of 8x8
-      
       self->renderWidth = width;
       self->renderHeight = height;
       
