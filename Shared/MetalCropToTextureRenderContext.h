@@ -33,11 +33,13 @@
 
 // Render textures initialization
 // renderSize : indicates the size of the entire texture containing block by block values
-// blockSize  : indicates the size of the block to be operated on
+// cropFromSize : indicates the size of block dimension input to be cropped
+// blockSize  : indicates the size of the block
 // renderFrame : holds textures used while rendering
 
 - (void) setupRenderTextures:(MetalRenderContext*)mrc
                   renderSize:(CGSize)renderSize
+                cropFromSize:(CGSize)cropFromSize
                    blockSize:(CGSize)blockSize
                  renderFrame:(MetalCropToTextureRenderFrame*)renderFrame;
 

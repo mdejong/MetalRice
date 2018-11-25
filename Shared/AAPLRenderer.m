@@ -181,14 +181,13 @@ const static unsigned int blockDim = RICE_SMALL_BLOCK_DIM;
     // and then split into 8x8 rice opt blocks.
     
     int numBigBlocksInWidth = blockWidth / 4;
-    if (numBigBlocksInWidth < 1) {
-        numBigBlocksInWidth = 1;
-    }
+    assert(numBigBlocksInWidth > 0);
+    assert((blockWidth % 4) == 0);
+  
     int numBigBlocksInHeight = blockHeight / 4;
-    if (numBigBlocksInHeight < 1) {
-        numBigBlocksInHeight = 1;
-    }
-    
+    assert(numBigBlocksInHeight > 0);
+    assert((blockHeight % 4) == 0);
+  
     [Rice blockDeltaEncoding2Stage:(uint8_t*)_imageInputBytes.bytes
              inNumBytes:(int)_imageInputBytes.length
                   width:width
@@ -301,16 +300,18 @@ blockOptimalKTableData:blockOptimalKTableData
   
   int blockN = blockWidth * blockHeight;
   
+  // Note that width and height are passed in terms of the zero padded size here.
+  
   [Rice encodeRice2Stream:_outBlockOrderSymbolsData
                    blockN:blockN
-                    width:width
-                   height:height
+                    width:blockWidth*blockDim
+                   height:blockHeight*blockDim
         riceEncodedStream:_encodedRice2Bits
        blockOptimalKTable:_blockOptimalKTable
    halfBlockOptimalKTable:_halfBlockOptimalKTable
      halfBlockOffsetTable:_halfBlockOffsetTableData];
 
-  // Out num rice bytes combines prefix and suffix
+  // Out num rice bytes combines prefix and suffix in a single stream of bits
     
   if ((1)) {
     printf("in     num bytes  %8d\n", outBlockOrderSymbolsNumBytes);
@@ -450,28 +451,29 @@ blockOptimalKTableData:blockOptimalKTableData
       self->renderWidth = width;
       self->renderHeight = height;
       
-      // If blockWidth x blockHeight is not an exact multiple of
-      // 4 * (blockDim * blockDim) then determine how many padding
-      // blocks are nedded for the rice encoding so that all input
+      // If blockWidth x blockHeight is not as exact multiple
+      // of 16 blocks (this is 4 x 4 blocks in a big block)
+      // then determine how many padding blocks are nedded
+      // for the rice encoding so that all input
       // streams are the same lenght.
-      
-      int numBlocksOver = (blockWidth * blockHeight) % 4;
-      int numBlocksUnder = 0;
+
+      const int minNumBlocksInBigBlockDim = 4;
+      const int minNumBlocksInBigBlock = (minNumBlocksInBigBlockDim * minNumBlocksInBigBlockDim);
+      int numBlocksOver = (blockWidth * blockHeight) % minNumBlocksInBigBlock;
       
       if (numBlocksOver > 0) {
-        numBlocksUnder = 4 - numBlocksOver;
+        // Expand a non-multiple of 4 width until it is a multiple of 4
         
-        // In the special case where the number of blocks needed to fit
-        // to a multiple of 4 blocks is exactly blockWidth, then make
-        // the height one larger. Otherwise, make increase block width.
-        
-        if (numBlocksUnder == blockWidth) {
-          blockHeight += 1;
-        } else {
-          blockWidth += numBlocksUnder;
+        while ((blockWidth % minNumBlocksInBigBlockDim) != 0) {
+          blockWidth++;
         }
-        
-        assert(((blockWidth * blockHeight) % 4) == 0);
+        while ((blockHeight % minNumBlocksInBigBlockDim) != 0) {
+          blockHeight++;
+        }
+
+        assert((blockWidth % minNumBlocksInBigBlockDim) == 0);
+        assert((blockHeight % minNumBlocksInBigBlockDim) == 0);
+        assert(((blockWidth * blockHeight) % minNumBlocksInBigBlock) == 0);
       }
       
       // In the case where a 4x stream
@@ -487,10 +489,14 @@ blockOptimalKTableData:blockOptimalKTableData
       {
         assert(renderFrame);
         
-        int width = renderFrame.renderWidth;
-        int height = renderFrame.renderHeight;
+        // Note that the width and height here is in terms of big blocks, in
+        // int the case that the image is smaller than one big block then
+        // additional zero padding is required to adjust to the min block size.
         
-        CGSize renderSize = CGSizeMake(width, height);
+        int bigBlockWidth = renderFrame.renderBlockWidth * blockDim;
+        int bigBlockHeight = renderFrame.renderBlockHeight * blockDim;
+        
+        CGSize renderSize = CGSizeMake(bigBlockWidth, bigBlockHeight);
         CGSize blockSize = CGSizeMake(blockDim, blockDim);
         
         for (int i = 0; i < MetalRenderContextMaxBuffersInFlight; i++) {
@@ -509,7 +515,11 @@ blockOptimalKTableData:blockOptimalKTableData
         int width = renderFrame.renderWidth;
         int height = renderFrame.renderHeight;
         
+        int bigBlockWidth = renderFrame.renderBlockWidth * blockDim;
+        int bigBlockHeight = renderFrame.renderBlockHeight * blockDim;
+        
         CGSize renderSize = CGSizeMake(width, height);
+        CGSize cropFromSize = CGSizeMake(bigBlockWidth, bigBlockHeight);
         CGSize blockSize = CGSizeMake(blockDim, blockDim);
         
         for (int i = 0; i < MetalRenderContextMaxBuffersInFlight; i++) {
@@ -518,9 +528,10 @@ blockOptimalKTableData:blockOptimalKTableData
           combinedRenderFrame.metalCropToTextureRenderFrame.inputTexture = combinedRenderFrame.metalRiceRenderFrame.outputTexture;
           
           [self.metalCropToTextureRenderContext setupRenderTextures:self.metalRenderContext
-                                                  renderSize:renderSize
-                                                   blockSize:blockSize
-                                                 renderFrame:combinedRenderFrame.metalCropToTextureRenderFrame];
+                                                         renderSize:renderSize
+                                                       cropFromSize:cropFromSize
+                                                          blockSize:blockSize
+                                                        renderFrame:combinedRenderFrame.metalCropToTextureRenderFrame];
         }
       }
       

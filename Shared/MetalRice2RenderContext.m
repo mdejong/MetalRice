@@ -175,6 +175,10 @@
   
   int numBigBlocksInWidth = numBlocksInWidth / bigBlocksDim;
   int numBigBlocksInHeight = numBlocksInHeight / bigBlocksDim;
+  
+  assert(numBigBlocksInWidth > 0);
+  assert(numBigBlocksInHeight > 0);
+  
   int numBigBlocks = numBigBlocksInWidth * numBigBlocksInHeight;
   
   int numBytes = (width * height);
@@ -186,11 +190,7 @@
   threadgroupsPerGrid.width = numBigBlocksInWidth;
   threadgroupsPerGrid.height = numBigBlocksInHeight;
   threadgroupsPerGrid.depth = 1;
-  
-  // FIXME: assume 32x1 for threadgroups, then force number of groups in the grid to 1x1
-  // and keep processing inside a loop in the logic. Need to pass in a struct that contains
-  // additional static info like how many loops of 64 to process before exiting.
-  
+    
   // The number of threads in one threadgroup, in each dimension.
   MTLSize threadsPerThreadgroup;
   threadsPerThreadgroup.width = 32; // One thread for each uchar4, else 1 to 1
@@ -204,30 +204,6 @@
   
   self.threadgroupsPerGrid = threadgroupsPerGrid;
   self.threadsPerThreadgroup = threadsPerThreadgroup;
-  
-  int blockDim4 = (int)threadsPerThreadgroup.width * (int)threadsPerThreadgroup.height;
-  int gridDim4 = (int)threadgroupsPerGrid.width * (int)threadgroupsPerGrid.height;
-  
-  //assert((blockDim4 * gridDim4 * numBytesEachThread) == numBytes);
-  
-  /*
-  
-  // Dimensions passed into shaders
-  
-  renderFrame.renderTargetDimensionsAndBlockDimensionsUniform = [mrc.device newBufferWithLength:sizeof(RenderTargetDimensionsAndBlockDimensionsUniform) options:MTLResourceStorageModeShared];
-  
-  {
-    RenderTargetDimensionsAndBlockDimensionsUniform *ptr = renderFrame.renderTargetDimensionsAndBlockDimensionsUniform.contents;
-    // pass numBlocksInWidth
-    ptr->width = renderFrame.numBlocksInWidth;
-    // pass numBlocksInHeight
-    ptr->height = renderFrame.numBlocksInHeight;
-    // pass (blockSide * blockSide) as a POT
-    ptr->blockWidth = renderFrame.blockDim;
-    ptr->blockHeight = renderFrame.blockDim;
-  }
-  
-  */
   
   // K lookup table
   

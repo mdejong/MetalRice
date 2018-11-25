@@ -51,11 +51,13 @@
 
 // Render textures initialization
 // renderSize : indicates the size of the entire texture containing block by block values
-// blockSize  : indicates the size of the block to be summed
+// cropFromSize : indicates the size of block dimension input to be cropped
+// blockSize  : indicates the size of the block
 // renderFrame : holds textures used while rendering
 
 - (void) setupRenderTextures:(MetalRenderContext*)mrc
                   renderSize:(CGSize)renderSize
+                cropFromSize:(CGSize)cropFromSize
                    blockSize:(CGSize)blockSize
                  renderFrame:(MetalCropToTextureRenderFrame*)renderFrame
 {
@@ -91,8 +93,16 @@
   
   // Calculate width and height in terms of block dim multiples
   
-  unsigned int width = renderSize.width;
-  unsigned int height = renderSize.height;
+  unsigned int cropWidth = renderSize.width;
+  unsigned int cropHeight = renderSize.height;
+  
+  renderFrame.width = cropWidth;
+  renderFrame.height = cropHeight;
+
+  // Calculate number of blocks in terms of the crop from size
+  
+  unsigned int width = cropFromSize.width;
+  unsigned int height = cropFromSize.height;
   
   // Determine the number of blocks in the input image width
   // along with the number of blocks in the height. The input
@@ -102,9 +112,6 @@
   assert((width % blockDim) == 0);
   assert((height % blockDim) == 0);
 #endif // DEBUG
-  
-  renderFrame.width = width;
-  renderFrame.height = height;
   
   unsigned int numBlocksInWidth = width / blockDim;
   unsigned int numBlocksInHeight = height / blockDim;
@@ -128,18 +135,21 @@
   // Output texture, note that a texture can be defined for the frame
   // already and in this case the existing ref is simply validated
   // without allocating another texture.
-  
-  int width4 = width / sizeof(uint32_t);
 
   {
     id<MTLTexture> txt = renderFrame.inputTexture;
+
+    int cropFromWidth = cropFromSize.width;
+    int cropFromHeight = cropFromSize.height;
+    
+    int cropFromWidth4 = cropFromWidth / sizeof(uint32_t);
     
     if (txt != nil) {
-      NSAssert(txt.width == width4, @"inputTexture width must be %d, it was %d", width4, (int)txt.width);
-      NSAssert(txt.height == height, @"inputTexture height must be %d, it was %d", height, (int)txt.height);
+      NSAssert(txt.width == cropFromWidth4, @"inputTexture width must be %d, it was %d", cropFromWidth4, (int)txt.width);
+      NSAssert(txt.height == cropFromHeight, @"inputTexture height must be %d, it was %d", cropFromHeight, (int)txt.height);
       NSAssert(txt.pixelFormat == MTLPixelFormatBGRA8Unorm, @"inputTexture must be BGRA format pixels");
     } else {
-      txt = [mrc makeBGRATexture:CGSizeMake(width4, height) pixels:NULL usage:MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite];
+      txt = [mrc makeBGRATexture:CGSizeMake(cropFromWidth4, cropFromHeight) pixels:NULL usage:MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite];
       
       renderFrame.inputTexture = txt;
     }
@@ -155,11 +165,11 @@
     id<MTLTexture> txt = renderFrame.outputTexture;
     
     if (txt != nil) {
-      NSAssert(txt.width == width, @"outputTexture width must be %d, it was %d", width, (int)txt.width);
-      NSAssert(txt.height == height, @"outputTexture height must be %d, it was %d", height, (int)txt.height);
+      NSAssert(txt.width == cropWidth, @"outputTexture width must be %d, it was %d", cropWidth, (int)txt.width);
+      NSAssert(txt.height == cropHeight, @"outputTexture height must be %d, it was %d", cropHeight, (int)txt.height);
       NSAssert(txt.pixelFormat == MTLPixelFormatBGRA8Unorm, @"outputTexture must be BGRA format pixels");
     } else {
-      txt = [mrc makeBGRATexture:CGSizeMake(width, height) pixels:NULL usage:MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite];
+      txt = [mrc makeBGRATexture:CGSizeMake(cropWidth, cropHeight) pixels:NULL usage:MTLTextureUsageRenderTarget|MTLTextureUsageShaderRead|MTLTextureUsageShaderWrite];
       
       renderFrame.outputTexture = txt;
     }
@@ -177,8 +187,8 @@
   
   {
     RenderTargetDimensionsAndBlockDimensionsUniform *ptr = renderFrame.renderTargetDimensionsAndBlockDimensionsUniform.contents;
-    ptr->width = width;
-    ptr->height = height;
+    ptr->width = cropWidth;
+    ptr->height = cropHeight;
     ptr->blockWidth = numBlocksInWidth;
     ptr->blockHeight = numBlocksInHeight;
   }
