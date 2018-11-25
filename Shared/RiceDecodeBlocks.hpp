@@ -49,7 +49,7 @@ uint8_t rice_rdb_decode_symbol(
   }
 #endif // DEBUG
 
-  unsigned int symbol;
+  ushort symbol;
   
   if (rdb.regN < 16) {
     rdb.cachedBits.refill(rdb.reg, rdb.regN);
@@ -59,21 +59,12 @@ uint8_t rice_rdb_decode_symbol(
 #endif // DEBUG
   }
   
-  unsigned int q;
-  
   if (rdb.reg == 0) {
 #if defined(DEBUG)
     assert(rdb.regN == 16);
 #endif // DEBUG
     
     rdb.regN = 0;
-    
-#if defined(RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL)
-    rdb.totalNumBitsRead += 16;
-#endif // RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL
-    
-    // Special case for 16 bits of zeros in high halfword
-    q = 0;
     
     // Ignore the 16 zero bits and reload from input stream
     
@@ -116,9 +107,12 @@ uint8_t rice_rdb_decode_symbol(
     rdb.regN -= 8;
     
 #if defined(RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL)
-    rdb.totalNumBitsRead += 8;
+    rdb.totalNumBitsRead += 24;
 #endif // RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL
   } else {
+    ushort numBitsRead;
+    ushort q;
+    
 # if defined(DEBUG)
     assert(rdb.reg != 0);
 # endif // DEBUG
@@ -155,7 +149,8 @@ uint8_t rice_rdb_decode_symbol(
 # endif // DEBUG
     
     // Shift left to place MSB of remainder at the MSB of register
-    rdb.reg <<= (q + 1);
+    numBitsRead = (q + 1);
+    rdb.reg <<= numBitsRead;
     
 #if defined(DEBUG)
     if (debug) {
@@ -164,13 +159,9 @@ uint8_t rice_rdb_decode_symbol(
 # endif // DEBUG
     
 # if defined(DEBUG)
-    assert(rdb.regN >= (q + 1));
+    assert(rdb.regN >= numBitsRead);
 # endif // DEBUG
-    rdb.regN -= (q + 1);
-    
-#if defined(RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL)
-    rdb.totalNumBitsRead += (q + 1);
-#endif // RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL
+    rdb.regN -= numBitsRead;
     
     // Reload so that REM bits will always be available
     
@@ -179,9 +170,6 @@ uint8_t rice_rdb_decode_symbol(
 # if defined(DEBUG)
     assert(rdb.regN >= k);
 # endif // DEBUG
-    
-    // FIXME: shift right could use a mask based on k and a shift based
-    // on q to avoid using the result of the earlier left shift
     
     // Shift right to place LSB of remainder at bit offset 0
     uint8_t rem = rdb.reg >> (16 - k);
@@ -214,7 +202,8 @@ uint8_t rice_rdb_decode_symbol(
 #endif // DEBUG
     
 #if defined(RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL)
-    rdb.totalNumBitsRead += k;
+    numBitsRead += k;
+    rdb.totalNumBitsRead += numBitsRead;
 #endif // RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL
   }
   
