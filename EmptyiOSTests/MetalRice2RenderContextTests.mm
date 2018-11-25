@@ -4658,16 +4658,21 @@ vector<uint32_t> generateBitOffsets(const uint8_t * symbols,
       printf("\n");
     }
     
-    for (int i = 0; i < (width*height); i++) {
-      uint8_t bval = pixels8[i];
-      uint8_t expected = inputImageOrderPixels[i];
-      if (bval != expected) {
-        int x = i % width;
-        int y = i / width;
-        XCTAssert(bval == expected, @"bval == expected : %d == %d : offset %d : x,y %d,%d", bval, expected, i, x, y);
+    {
+      int numFails = 0;
+      
+      for (int i = 0; i < (width*height); i++) {
+        uint8_t bval = pixels8[i];
+        uint8_t expected = inputImageOrderPixels[i];
+        if (bval != expected && numFails < 10) {
+          int x = i % width;
+          int y = i / width;
+          XCTAssert(bval == expected, @"bval == expected : %d == %d : offset %d : x,y %d,%d", bval, expected, i, x, y);
+          numFails += 1;
+        }
       }
     }
-    
+
     // Emit blocki as 32 bit values
     
     vector<uint32_t> blockiVec;
