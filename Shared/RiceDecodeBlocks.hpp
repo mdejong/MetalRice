@@ -51,7 +51,11 @@ uint8_t rice_rdb_decode_symbol(
 
   ushort symbol;
   
-  if (rdb.regN < 16) {
+  {
+#if defined(DEBUG)
+    assert(rdb.regN < 16);
+#endif // DEBUG
+
     rdb.cachedBits.refill(rdb.reg, rdb.regN);
     
 #if defined(DEBUG)
@@ -163,9 +167,18 @@ uint8_t rice_rdb_decode_symbol(
 # endif // DEBUG
     rdb.regN -= numBitsRead;
     
-    // Reload so that REM bits will always be available
+    // Reload so that REM bits will always be available.
+    // In the case of k = 0 no additional bits are loaded
+    // so that the next loop can always unconditionally
+    // reload since regN would always be LT 16.
     
-    rdb.cachedBits.refill(rdb.reg, rdb.regN);
+    if (rdb.regN < k) {
+# if defined(DEBUG)
+      assert(k != 0);
+# endif // DEBUG
+      
+      rdb.cachedBits.refill(rdb.reg, rdb.regN);
+    }
     
 # if defined(DEBUG)
     assert(rdb.regN >= k);
