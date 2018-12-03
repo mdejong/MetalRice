@@ -2,6 +2,7 @@
 //  CachedBitsTests.mm
 //
 //  Created by Mo DeJong on 8/26/18.
+//  Copyright © 2018 Apple. All rights reserved.
 //
 //  Test cached bits reading logic.
 
@@ -1012,6 +1013,108 @@ using namespace std;
   XCTAssert(val == 1);
   
   return;
+}
+
+// In certain cases, it can be useful to be able to
+// generate an unconditional load that would cause
+// a refill to be executed even though the register
+// is already full. For example, when k = 0 a set
+// of reads can consume zero bits.
+
+- (void) testCached3216RefillWhenFull {
+  const uint32_t highOne = ((uint32_t)1) << 31;
+  
+  uint32_t inBytes[] = {
+    highOne,
+    0xFF00FF00,
+    0x7F7F7F7F
+  };
+  
+  const uint32_t *in32Ptr = (const uint32_t *) inBytes;
+  
+  CachedBits<uint32_t, const uint32_t*, uint16_t, uint8_t> cb;
+  
+  // Read 32 bits x 2
+  
+  cb.initBits(in32Ptr);
+  
+  // Read 16 bits into register
+  
+  uint16_t reg = 0;
+  uint8_t regN = 0;
+  
+  cb.refill(reg, regN);
+  
+  XCTAssert(regN == 16);
+  XCTAssert(reg == (highOne >> 16));
+  
+  XCTAssert(cb.c1NumBits == 16);
+  XCTAssert(cb.c1 == 0x00000000);
+  XCTAssert(cb.c2NumBits == 32);
+  XCTAssert(cb.c2 == 0xFF00FF00);
+  
+  // Invoke refill() when the dst register is already full. This
+  // should not assert, instead it will read zero bits and then OR
+  // the dst register with zero which is a nop. Both left and right
+  // shift by 16 need to result in zero for this to work properly.
+  
+  cb.refill(reg, regN, true);
+  
+  XCTAssert(regN == 16);
+  XCTAssert(reg == (highOne >> 16));
+  
+  XCTAssert(cb.c1NumBits == 16);
+  XCTAssert(cb.c1 == 0x00000000);
+  XCTAssert(cb.c2NumBits == 32);
+  XCTAssert(cb.c2 == 0xFF00FF00);
+}
+
+- (void) testCached3232RefillWhenFull {
+  const uint32_t highOne = ((uint32_t)1) << 31;
+  
+  uint32_t inBytes[] = {
+    highOne,
+    0xFF00FF00,
+    0x7F7F7F7F
+  };
+  
+  const uint32_t *in32Ptr = (const uint32_t *) inBytes;
+  
+  CachedBits<uint32_t, const uint32_t*, uint32_t, uint8_t> cb;
+  
+  // Read 32 bits x 2
+  
+  cb.initBits(in32Ptr);
+  
+  // Read 32 bits into register
+  
+  uint32_t reg = 0;
+  uint8_t regN = 0;
+  
+  cb.refill(reg, regN);
+  
+  XCTAssert(regN == 32);
+  XCTAssert(reg == highOne);
+  
+  XCTAssert(cb.c1NumBits == 32);
+  XCTAssert(cb.c1 == 0xFF00FF00);
+  XCTAssert(cb.c2NumBits == 32);
+  XCTAssert(cb.c2 == 0x7F7F7F7F);
+  
+  // Invoke refill() when the dst register is already full. This
+  // should not assert, instead it will read zero bits and then OR
+  // the dst register with zero which is a nop. Both left and right
+  // shift by 32 need to result in zero for this to work properly.
+  
+  cb.refill(reg, regN, true);
+  
+  XCTAssert(regN == 32);
+  XCTAssert(reg == highOne);
+  
+  XCTAssert(cb.c1NumBits == 32);
+  XCTAssert(cb.c1 == 0xFF00FF00);
+  XCTAssert(cb.c2NumBits == 32);
+  XCTAssert(cb.c2 == 0x7F7F7F7F);
 }
 
 @end

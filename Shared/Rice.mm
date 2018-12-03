@@ -487,7 +487,7 @@ void decodeRice2ParallelCheck(const uint8_t * bitBuff,
       printf("symbol starting bit offset %d\n", expectedBitOffset);
     }
     
-    RiceDecodeBlocks<CachedBits3216> rdb;
+    RiceDecodeBlocksT rdb;
     
     rdb.cachedBits.initBits(in32Ptr, expectedBitOffset);
     

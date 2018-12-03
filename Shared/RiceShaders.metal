@@ -40,6 +40,7 @@ typedef struct
 // to allow thread as a type in the tempalte parameters for some unknown reason.
 
 #define CACHEDBIT_THREAD_SPECIFIC thread
+#define CACHEDBIT_METAL_IMPL 1
 #define RICEDECODEBLOCKS_METAL_CLZ 1
 
 //#define RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL
@@ -55,8 +56,13 @@ typedef struct
 #import "CachedBits.hpp"
 #import "RiceDecodeBlocks.hpp"
 
-typedef CachedBits<thread uint32_t, const device uint32_t *, uint16_t, uint8_t> CachedBits3216;
-typedef CachedBits<thread uint32_t, threadgroup uint32_t *, uint16_t, uint8_t> CachedBits3216Threadgroup;
+//typedef CachedBits<thread uint32_t, const device uint32_t *, uint16_t, uint8_t> CachedBits3216;
+typedef CachedBits<thread uint32_t, const device uint32_t *, uint32_t, uint8_t> CachedBits3232;
+//typedef CachedBits<thread uint32_t, threadgroup uint32_t *, uint16_t, uint8_t> CachedBits3216Threadgroup;
+
+//typedef CachedBits3216 CachedBitsT;
+//typedef RiceDecodeBlocks<CachedBits3216, uint16_t, false> RiceDecodeBlocksT;
+typedef RiceDecodeBlocks<CachedBits3232, uint32_t, false> RiceDecodeBlocksT;
 
 // Render a 32x32 block with each threadgroup invocation. Each thread will process
 // 1/2 a block so that 32 of the 64 values in a block are processed by each
@@ -78,7 +84,7 @@ kernel void kernel_render_rice2(
   // into BGRA values so that 16 would be an entire block and 8 would
   // correspond to a half block.
   
-  thread RiceDecodeBlocks<CachedBits3216, false> rdb;
+  thread RiceDecodeBlocksT rdb;
   
   const ushort blockDim = RICE_SMALL_BLOCK_DIM;
   const ushort bigBlocksDim = 4;
@@ -187,12 +193,83 @@ kernel void kernel_render_rice2(
           prefixByte3 = bigBlockY;
         }
         
-        if (true) {
+        if (false) {
           // Order BGRA
-          prefixByte0 = rice_rdb_decode_symbol(rdb, k);
-          prefixByte1 = rice_rdb_decode_symbol(rdb, k);
-          prefixByte2 = rice_rdb_decode_symbol(rdb, k);
-          prefixByte3 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte0 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte1 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte2 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte3 = rice_rdb_decode_symbol(rdb, k);
+        }
+
+        if (false) {
+          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte1 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte2 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte3 |= rdb.decodeSuffixByte(k, false, 0, false);
+        }
+
+        if (false) {
+          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte0 |= rdb.decodeSuffixByte(k, true, k, false);
+          
+          prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte1 |= rdb.decodeSuffixByte(k, true, k, false);
+          
+          prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte2 |= rdb.decodeSuffixByte(k, true, k, false);
+          
+          prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte3 |= rdb.decodeSuffixByte(k, true, k, false);
+        }
+        
+        if (false) {
+          // Not working since k bits might not be loaded
+          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte1 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte2 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte3 |= rdb.decodeSuffixByte(k, false, 0, false);
+        }
+        
+        if (false) {
+          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte1  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte1 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte2  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte2 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte3  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte3 |= rdb.decodeSuffixByte(k, false, 0, false);
+        }
+        
+        if (true) {
+          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte1 |= rdb.decodeSuffixByte(k, true, k, false);
+          
+          prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte2 |= rdb.decodeSuffixByte(k, true, k, false);
+          
+          prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte3 |= rdb.decodeSuffixByte(k, true, k, false);
         }
         
         ushort2 blockCoords = ushort2(col, row);
@@ -241,7 +318,7 @@ kernel void kernel_render_rice2_undelta(
   // into BGRA values so that 16 would be an entire block and 8 would
   // correspond to a half block.
   
-  thread RiceDecodeBlocks<CachedBits3216, false> rdb;
+  thread RiceDecodeBlocksT rdb;
   
   const ushort blockDim = RICE_SMALL_BLOCK_DIM;
   const ushort bigBlocksDim = 4;
@@ -350,12 +427,69 @@ kernel void kernel_render_rice2_undelta(
           prefixByte3 = bigBlockY;
         }
         
-        if (true) {
+        if (false) {
           // Order BGRA
-          prefixByte0 = rice_rdb_decode_symbol(rdb, k);
-          prefixByte1 = rice_rdb_decode_symbol(rdb, k);
-          prefixByte2 = rice_rdb_decode_symbol(rdb, k);
-          prefixByte3 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte0 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte1 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte2 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte3 = rice_rdb_decode_symbol(rdb, k);
+          
+          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte1 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte2 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte3 |= rdb.decodeSuffixByte(k, false, 0, false);
+        }
+        
+        if (false) {
+          // 4.9
+          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte0 |= rdb.decodeSuffixByte(k, true, k, false);
+          
+          prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte1 |= rdb.decodeSuffixByte(k, true, k, false);
+          
+          prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte2 |= rdb.decodeSuffixByte(k, true, k, false);
+          
+          prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte3 |= rdb.decodeSuffixByte(k, true, k, false);
+        }
+
+        if (true) {
+          // 4.83 wo conditional suffix check
+          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte1 |= rdb.decodeSuffixByte(k, true, k, false);
+          
+          prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte2 |= rdb.decodeSuffixByte(k, true, k, false);
+          
+          prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte3 |= rdb.decodeSuffixByte(k, true, k, false);
+        }
+        
+        if (false) {
+          // 6.9
+          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte1  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte1 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte2  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte2 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte3  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte3 |= rdb.decodeSuffixByte(k, false, 0, false);
         }
         
         ushort2 blockCoords = ushort2(col, row);
@@ -609,7 +743,7 @@ kernel void kernel_render_rice2_blocki(
   // correspond to a half block.
   
   // Thread specific bit stream and registers
-  thread RiceDecodeBlocks<CachedBits3216, false> rdb;
+  thread RiceDecodeBlocksT rdb;
   
   const ushort blockDim = RICE_SMALL_BLOCK_DIM;
   const ushort bigBlocksDim = 4;
@@ -719,10 +853,10 @@ kernel void kernel_render_rice2_blocki(
         
         if (false) {
           // Order BGRA
-          prefixByte0 = rice_rdb_decode_symbol(rdb, k);
-          prefixByte1 = rice_rdb_decode_symbol(rdb, k);
-          prefixByte2 = rice_rdb_decode_symbol(rdb, k);
-          prefixByte3 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte0 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte1 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte2 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte3 = rice_rdb_decode_symbol(rdb, k);
         }
         
         ushort2 blockCoords = ushort2(col, row);
@@ -774,7 +908,7 @@ kernel void kernel_render_rice2_block_bit_offset(
   // correspond to a half block.
   
   // Thread specific bit stream and registers
-  thread RiceDecodeBlocks<CachedBits3216, false> rdb;
+  thread RiceDecodeBlocksT rdb;
   
   const ushort blockDim = RICE_SMALL_BLOCK_DIM;
   const ushort bigBlocksDim = 4;
@@ -888,10 +1022,10 @@ kernel void kernel_render_rice2_block_bit_offset(
         
         if (false) {
           // Order BGRA
-          prefixByte0 = rice_rdb_decode_symbol(rdb, k);
-          prefixByte1 = rice_rdb_decode_symbol(rdb, k);
-          prefixByte2 = rice_rdb_decode_symbol(rdb, k);
-          prefixByte3 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte0 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte1 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte2 = rice_rdb_decode_symbol(rdb, k);
+//          prefixByte3 = rice_rdb_decode_symbol(rdb, k);
         }
         
         ushort2 blockCoords = ushort2(col, row);

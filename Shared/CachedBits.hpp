@@ -152,6 +152,7 @@ public:
       assert(c1NumBits > numBitsOver);
 #endif // DEBUG
       
+      // numBitsOver can never be larger than the number of bits in type here
       c1 <<= numBitsOver;
       c1NumBits -= numBitsOver;
     }
@@ -184,12 +185,75 @@ public:
     return v;
   }
   
+  // Implements left/right shift except that this method handles the
+  // weird edgecase where the number of bits to be shifted
+  // could be 32. This should shift all the bits out of the
+  // register and return zero but C does not define this behavior.
+  // Note that Metal defines a zero fill rule for unsigned numbers
+  // so special handling is not needed.
+  
+  inline
+  CACHED zerodShiftLeft(CACHED val, NBITS shiftNBits) {
+#if defined(DEBUG)
+    assert(shiftNBits <= numCachedBits());
+#endif // DEBUG
+    
+#if defined(CACHEDBIT_METAL_IMPL)
+    return (val << shiftNBits);
+#else
+    if ((0)) {
+      CACHED shifted;
+      if (shiftNBits == numCachedBits()) {
+        shifted = 0;
+      } else {
+        shifted = (val << shiftNBits);
+      }
+      return shifted;
+    } else {
+      bool cond = (shiftNBits == numCachedBits());
+      val = (cond ? 0 : val);
+      shiftNBits = (cond ? 0 : shiftNBits);
+      CACHED shifted = (val << shiftNBits);
+      return shifted;
+    }
+#endif // CACHEDBIT_METAL_IMPL
+  }
+  
+  inline
+  CACHED zerodShiftRight(CACHED val, NBITS shiftNBits) {
+#if defined(DEBUG)
+    assert(shiftNBits <= numCachedBits());
+#endif // DEBUG
+
+    // A plain bit shift should work but Metal seems to define a right shift by 32
+    // as a nop instead of a zero fill. Work around this problem with the same
+    // logic for both C/C++ and Metal.
+    
+    //return (val >> shiftNBits);
+    
+    if ((0)) {
+      CACHED shifted;
+      if (shiftNBits == numCachedBits()) {
+        shifted = 0;
+      } else {
+        shifted = (val >> shiftNBits);
+      }
+      return shifted;
+    } else {
+      bool cond = (shiftNBits == numCachedBits());
+      val = (cond ? 0 : val);
+      shiftNBits = (cond ? 0 : shiftNBits);
+      CACHED shifted = (val >> shiftNBits);
+      return shifted;
+    }
+  }
+  
   // Refill will always copy 1 to N bits from the cached bits
   // into a DST type register. The number of bits currently
   // in dst is passed in as dstNumBits and this value is
   // updated to the full size of DST before this method returns.
   
-  void refill(CACHEDBIT_THREAD_SPECIFIC DST & dst, CACHEDBIT_THREAD_SPECIFIC NBITS & dstNumBits) {
+  void refill(CACHEDBIT_THREAD_SPECIFIC DST & dst, CACHEDBIT_THREAD_SPECIFIC NBITS & dstNumBits, const bool allowRefillWhenFull = false) {
     const NBITS dstFullNumBits = numDstBits();
     NBITS inDstNumBits = dstNumBits;
     NBITS numBitsNeeded = dstFullNumBits - inDstNumBits;
@@ -221,7 +285,10 @@ public:
       // dstNumBits must be smaller than the full number
       // of bits in a register, this is required so that
       // each pass is gaurenteed to process 1 symbol.
-      assert(inDstNumBits < dstFullNumBits);
+      if (allowRefillWhenFull == false) {
+        // Check that dst register is not already full
+        assert(inDstNumBits < dstFullNumBits);
+      }
     }
 #endif // DEBUG
     
@@ -256,10 +323,13 @@ public:
 #endif // EMIT_CACHEDBITS_DEBUG_OUTPUT
       
 #if defined(DEBUG)
-      assert((inDstNumBits + dstShift) < numCachedBits());
+      if (allowRefillWhenFull == false) {
+        assert((inDstNumBits + dstShift) < numCachedBits());
+      }
 #endif // DEBUG
       
-      dst |= (c1 >> (inDstNumBits + dstShift));
+      NBITS shiftBy = (inDstNumBits + dstShift);
+      dst |= zerodShiftRight(c1, shiftBy);
       dstNumBits += numBitsNeeded;
 
 #if defined(EMIT_CACHEDBITS_DEBUG_OUTPUT)
@@ -272,19 +342,8 @@ public:
       }
 #endif // EMIT_CACHEDBITS_DEBUG_OUTPUT
       
-      if (numCachedBits() == numDstBits() && numBitsNeeded == numDstBits()) {
-        // Transfer between registers of same size, c1 ends up empty but
-        // avoid edge case of shift left by the register size which is undefined
-        c1 = 0;
-        c1NumBits = 0;
-      } else {
-#if defined(DEBUG)
-        assert(numBitsNeeded < numCachedBits());
-#endif // DEBUG
-        
-        c1 <<= numBitsNeeded;
-        c1NumBits -= numBitsNeeded;
-      }
+      c1 = zerodShiftLeft(c1, numBitsNeeded);
+      c1NumBits -= numBitsNeeded;
       
       if (c1NumBits == 0)
       {
@@ -304,7 +363,8 @@ public:
       assert((inDstNumBits + dstShift) < numCachedBits());
 #endif // DEBUG
       
-      dst |= (c1 >> (inDstNumBits + dstShift));
+      NBITS shiftBy = (inDstNumBits + dstShift);
+      dst |= zerodShiftRight(c1, shiftBy);
       dstNumBits += c1NumBits;
       numBitsNeeded -= c1NumBits;
       
@@ -338,14 +398,15 @@ public:
         assert((dstNumBits + dstShift) < numCachedBits());
 #endif // DEBUG
         
-        dst |= (c1 >> (dstNumBits + dstShift));
+        NBITS shiftBy = (dstNumBits + dstShift);
+        dst |= zerodShiftRight(c1, shiftBy);
         dstNumBits += numBitsNeeded;
         
 #if defined(DEBUG)
         assert(numBitsNeeded < numCachedBits());
 #endif // DEBUG
         
-        c1 <<= numBitsNeeded;
+        c1 = zerodShiftLeft(c1, numBitsNeeded);
         c1NumBits -= numBitsNeeded;
       }
       

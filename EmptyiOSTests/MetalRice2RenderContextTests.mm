@@ -189,7 +189,7 @@ void decodeParallelCheck(const uint8_t * bitBuff,
       printf("symbol starting bit offset %d\n", expectedBitOffset);
     }
     
-    RiceDecodeBlocks<CachedBits3216> rdb;
+    RiceDecodeBlocksT rdb;
     
     rdb.cachedBits.initBits(in32Ptr, expectedBitOffset);
     
@@ -868,6 +868,1416 @@ vector<uint32_t> generateBitOffsets(const uint8_t * symbols,
   [mRenderContext renderRice:mrc
                      commandBuffer:commandBuffer
                        renderFrame:mRenderFrame];
+  
+  // Wait for commands to be rendered
+  [commandBuffer commit];
+  [commandBuffer waitUntilCompleted];
+  
+  CFTimeInterval stop = CACurrentMediaTime();
+  
+  NSLog(@"measured time %.2f ms", (stop-start) * 1000);
+  
+  if (1)
+  {
+    NSLog(@"outputTexture: %d x %d", width, height);
+    
+    NSData *outputData = [mrc getBGRATextureAsBytes:outputTexture];
+    uint8_t *ptr = (uint8_t *) outputData.bytes;
+    
+    for (int row = 0; row < height; row++) {
+      for (int col = 0; col < width; col++) {
+        int offset = (row * width) + col;
+        int val = ptr[offset];
+        printf("%2d ", val);
+      }
+      printf("\n");
+      fflush(stdout);
+    }
+    
+    printf("done\n");
+  }
+  
+  // Compare output bytes in image order
+  
+  {
+    NSData *outputData = [mrc getBGRATextureAsBytes:outputTexture];
+    uint8_t *outputPrefixBytesPtr = (uint8_t *) outputData.bytes;
+    
+    // Image order original bytes
+    uint8_t *expectedBytesPtr = inputImageOrderPixels;
+    
+    int same = 1;
+    
+    if (1)
+    {
+      int numMismatched = 0;
+      
+      printf("validate outputTexture: %dx%d\n", width, height);
+      
+      for (int row = 0; row < height; row++) {
+        for (int col = 0; col < width; col++) {
+          int offset = (row * width) + col;
+          uint8_t outputVal = outputPrefixBytesPtr[offset];
+          uint8_t expectedVal = expectedBytesPtr[offset];
+          if (outputVal != expectedVal && numMismatched < 10) {
+            printf("output[%3d,%3d] mismatch : output != expected : %d != %d\n", col, row, outputVal, expectedVal);
+            same = 0;
+            numMismatched += 1;
+          }
+        }
+      }
+    }
+    
+    XCTAssert(same == 1);
+    
+    NSLog(@"validated %d bytes", (int)width*height);
+  }
+  
+  // Assume the above is working, run the decode process over and over
+  // to get accurate timing results
+  
+  [self measureBlock:^{
+    // Get a metal command buffer, render compute invocation into it
+    
+    CFTimeInterval start = CACurrentMediaTime();
+    
+    id <MTLCommandBuffer> commandBuffer = [mrc.commandQueue commandBuffer];
+    
+#if defined(DEBUG)
+    assert(commandBuffer);
+#endif // DEBUG
+    
+    commandBuffer.label = @"XCTestRenderCommandBuffer";
+    
+    {
+      // Copy into blockOffsetTableBuff
+      
+      uint32_t *bitOffsetTableOutPtr = (uint32_t *) mRenderFrame.blockOffsetTableBuff.contents;
+      assert(blockBitStartOffset.size() == numOffsetsToCopy);
+      assert(mRenderFrame.blockOffsetTableBuff.length == (numOffsetsToCopy * sizeof(uint32_t)));
+      
+      for (int i = 0; i < blockBitStartOffset.size(); i++) {
+        uint32_t bitOffset = blockBitStartOffset[i];
+        bitOffsetTableOutPtr[i] = bitOffset;
+      }
+    }
+    
+    // Put the code you want to measure the time of here.
+    
+    [mRenderContext renderRice:mrc
+                 commandBuffer:commandBuffer
+                   renderFrame:mRenderFrame];
+    
+    // Wait for commands to be rendered
+    [commandBuffer commit];
+    [commandBuffer waitUntilCompleted];
+    
+    CFTimeInterval stop = CACurrentMediaTime();
+    
+    NSLog(@"measured time %.2f ms", (stop-start) * 1000);
+  }];
+  
+  return;
+}
+
+- (void)testRiceRender4x4_k0 {
+  
+  const int constK = 0;
+  
+  const int blockDim = 8;
+  const int blockiDim = 4;
+  
+  // 8x8 blocks at 1x1 big blocks, aka 32x32
+  const int width = 4 * blockDim;
+  const int height = 4 * blockDim;
+  
+  const int numBlocksInWidth = width / blockDim;
+  const int numBlocksInHeight = height / blockDim;
+  
+  const int numBigBlocksInWidth = width / (blockDim * blockiDim);
+  const int numBigBlocksInHeight = height / (blockDim * blockiDim);
+  
+  const int blockN = (width * height) / (blockDim * blockDim);
+  
+  const int numOffsetsToCopy = (blockN * 2);
+  
+  // 8x8 blocks
+  
+  vector<uint8_t> inputPixelsVec;
+  inputPixelsVec.resize(width*height);
+  uint8_t *inputPixels = inputPixelsVec.data();
+  
+  vector<uint8_t> inputImageOrderPixelsVec;
+  inputImageOrderPixelsVec.resize(width*height);
+  uint8_t *inputImageOrderPixels = inputImageOrderPixelsVec.data();
+  
+  vector<uint8_t> outputPixelsVec;
+  outputPixelsVec.resize(width*height);
+  uint8_t *outputPixels = outputPixelsVec.data();
+  
+  vector<uint32_t> blockBitStartOffset;
+  vector<uint8_t> riceEncodedVec;
+  
+  vector<uint8_t> blockOptimalKTableVec(blockN + 1);
+  memset(blockOptimalKTableVec.data(), constK, (int)blockOptimalKTableVec.size());
+  
+  //  int over = 1;
+  //  for (int row = 0; row < height; row++) {
+  //    for (int col = 0; col < width; col++) {
+  //      int offset = (row * width) + col;
+  //      int bVal = offset & 63;
+  //      inputPixels[offset] = bVal;
+  //
+  //      if ((offset != 0) && (bVal == 0)) {
+  //        inputPixels[offset] += over;
+  //        over += 1;
+  //      }
+  //    }
+  //  }
+  
+  // Incrementing values from row number
+  
+  for (int row = 0; row < height; row++) {
+    // Write col 0 for each row
+    
+    int bVal;
+    
+    {
+      int col = 0;
+      int offset = (row * width) + col;
+      bVal = row & 0xFF;
+      inputPixels[offset] = bVal;
+    }
+    
+    for (int col = 1; col < width; col++) {
+      int offset = (row * width) + col;
+      bVal += 1;
+      inputPixels[offset] = bVal;
+    }
+  }
+  
+  // Image is generated in block order so that the ascending
+  // values are stored 1 block at a time.
+  
+  if ((1)) {
+    printf("8x8 block order:\n");
+    
+    for (int row = 0; row < height; row++) {
+      for (int col = 0; col < width; col++) {
+        int offset = (row * width) + col;
+        int bVal = inputPixels[offset];
+        printf("%2d ", bVal);
+      }
+      printf("\n");
+    }
+    
+    printf("\n");
+  }
+  
+  // Reorder into image order and print
+  
+  {
+    // Reorder bytes from block order to image order via flatten
+    
+    BlockDecoder<uint8_t, blockDim> db;
+    
+    uint8_t *inPrefixBytesPtr = inputPixels;
+    
+    db.blockVectors.resize(numBlocksInWidth * numBlocksInHeight);
+    
+    for (int blocki = 0; blocki < (numBlocksInWidth * numBlocksInHeight); blocki++) {
+      vector<uint8_t> & blockVec = db.blockVectors[blocki];
+      // Append pixels from block by block data
+      
+      blockVec.resize(blockDim * blockDim);
+      memcpy(blockVec.data(), inPrefixBytesPtr, blockDim * blockDim * sizeof(uint8_t));
+      inPrefixBytesPtr += (blockDim * blockDim);
+    }
+    
+    db.flattenAndCrop(inputImageOrderPixels,
+                      width*height,
+                      numBlocksInWidth,
+                      numBlocksInHeight,
+                      width,
+                      height);
+  }
+  
+  
+  if ((1)) {
+    printf("original image order:\n");
+    
+    for (int row = 0; row < height; row++) {
+      for (int col = 0; col < width; col++) {
+        int offset = (row * width) + col;
+        int bVal = inputImageOrderPixels[offset];
+        printf("%2d ", bVal);
+      }
+      printf("\n");
+    }
+    
+    printf("\n");
+  }
+  
+  // Generate blocki ordering
+  
+  vector<uint32_t> blockiVec;
+  vector<uint32_t> blockiLookupVec;
+  
+  block_reorder_blocki<blockDim,blockiDim>(width, height, blockiVec, blockiLookupVec);
+  
+  // Invoke s32 layout logic with ordered blocki generated above
+  
+  int numSegments = 32;
+  
+  uint8_t *inputPixelsPtr = inputPixels;
+  uint32_t *blockiPtr = blockiLookupVec.data();
+  
+  vector<uint8_t> blockiReorderedVec;
+  vector<uint8_t> blockiOptimalKTableVec;
+  vector<uint8_t> halfBlockOptimalKTableVec;
+  
+  blockiOptimalKTableVec = blockOptimalKTableVec;
+  
+  block_s32_format_block_layout(inputPixelsPtr,
+                                outputPixels,
+                                blockN,
+                                blockDim,
+                                numSegments,
+                                blockiPtr,
+                                &blockiReorderedVec,
+                                &blockiOptimalKTableVec,
+                                &halfBlockOptimalKTableVec);
+  
+  XCTAssert(blockiOptimalKTableVec.size() == blockOptimalKTableVec.size(), @"same size");
+  XCTAssert(inputPixelsVec == blockiReorderedVec, @"blocki reordered pixels");
+  XCTAssert(blockiOptimalKTableVec == blockOptimalKTableVec, @"same k values");
+  
+  if ((1)) {
+    printf("big block s32 image order:\n");
+    
+    for (int row = 0; row < height; row++) {
+      for (int col = 0; col < width; col++) {
+        int offset = (row * width) + col;
+        int bVal = outputPixels[offset];
+        printf("%2d ", bVal);
+      }
+      printf("\n");
+    }
+    
+    printf("\n");
+  }
+  
+  // Print blocki values in block order
+  
+  if ((1)) {
+    printf("block order:\n");
+    
+    int offset = 0;
+    
+    for ( ; offset < (width * height); ) {
+      printf("offset %3d (%d at a time)\n", offset, numSegments);
+      
+      for (int i = 0; i < numSegments; i++) {
+        int bVal = outputPixels[offset++];
+        printf("%3d ", bVal);
+      }
+      printf("\n");
+    }
+  }
+  
+  // Read 16 small blocks at a time from 32 streams
+  // so that a big block of 32x32 is read in with
+  // 8 reads per small block.
+  
+  vector<uint8_t> decodedS32PixelsVec(width*height);
+  uint8_t *decodedS32Pixels = decodedS32PixelsVec.data();
+  
+  block_s32_flatten_block_layout(outputPixels,
+                                 decodedS32Pixels,
+                                 blockN,
+                                 blockDim,
+                                 numSegments);
+  
+  if ((1)) {
+    printf("interleaved block order:\n");
+    
+    int offset = 0;
+    
+    for ( ; offset < (width * height); ) {
+      printf("offset %3d (%d at a time)\n", offset, numSegments);
+      
+      for (int i = 0; i < numSegments; i++) {
+        int bVal = decodedS32Pixels[offset++];
+        printf("%2d, ", bVal);
+      }
+      printf("\n");
+    }
+  }
+  
+  // Validate output flat block order against original block input order
+  
+  {
+    int numFails = 0;
+    
+    for (int i = 0; i < (width*height); i++) {
+      uint8_t bval = decodedS32Pixels[i];
+      uint8_t expected = blockiReorderedVec[i];
+      if (bval != expected) {
+        int x = i % width;
+        int y = i / width;
+        if (numFails < 10) {
+          XCTAssert(bval == expected, @"bval == expected : %d == %d : offset %d : x,y %d,%d", bval, expected, i, x, y);
+          numFails += 1;
+        }
+      }
+    }
+  }
+  
+  // Encode bytes as rice codes and then decode with software impl like compute shader
+  
+  {
+    int width4 = width / sizeof(uint32_t);
+    vector<uint32_t> decodedPixels32Vec(width4*height);
+    memset(decodedPixels32Vec.data(), 0xFF, decodedPixels32Vec.size() * sizeof(uint32_t));
+    uint32_t *decodedPixels32 = decodedPixels32Vec.data();
+    
+    // Encode bytes as rice bits
+    
+    int numBlockSymbols = blockN * blockDim * blockDim;
+    const uint8_t *blockSymbols = outputPixels;
+    
+    uint8_t *blockOptimalKTable = halfBlockOptimalKTableVec.data();
+    int blockOptimalKTableLen = (int) halfBlockOptimalKTableVec.size();
+    
+    riceEncodedVec = encode(blockSymbols,
+                            numBlockSymbols,
+                            blockDim,
+                            blockOptimalKTable,
+                            blockOptimalKTableLen,
+                            blockN);
+    
+#if defined(DEBUG)
+    {
+      vector<uint8_t> outBufferVec(width*height);
+      uint8_t *outBuffer = outBufferVec.data();
+      
+      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
+                                                               numBlockSymbols,
+                                                               blockDim,
+                                                               blockOptimalKTable,
+                                                               blockOptimalKTableLen,
+                                                               blockN,
+                                                               1);
+      
+      decode(riceEncodedVec.data(),
+             (int)riceEncodedVec.size(),
+             outBuffer,
+             width*height,
+             blockDim,
+             blockOptimalKTable,
+             blockOptimalKTableLen,
+             blockN,
+             bitOffsetsEveryVal.data());
+      
+      int cmp = memcmp(blockSymbols, outBuffer, width*height);
+      assert(cmp == 0);
+      
+      // Decode with non-stream rice method and validate against known good decoded values stream
+      
+      decodeParallelCheck(riceEncodedVec.data(),
+                          (int)riceEncodedVec.size(),
+                          outBuffer,
+                          width*height,
+                          blockDim,
+                          blockOptimalKTable,
+                          blockOptimalKTableLen,
+                          blockN,
+                          bitOffsetsEveryVal.data());
+    }
+#endif // DEBUG
+    
+    uint32_t *prefixBitsWordPtr = (uint32_t *) riceEncodedVec.data();
+    
+    // Fill in inoutBlockBitOffsetTable with bit offsets every 16 values (1/2 block)
+    
+    vector<uint32_t> bitOffsetsEveryHalfBlock = generateBitOffsets(blockSymbols,
+                                                                   numBlockSymbols,
+                                                                   blockDim,
+                                                                   blockOptimalKTable,
+                                                                   blockOptimalKTableLen,
+                                                                   blockN,
+                                                                   (blockDim * blockDim)/2);
+    
+    assert(bitOffsetsEveryHalfBlock.size() == numOffsetsToCopy);
+    
+    blockBitStartOffset.resize(numOffsetsToCopy);
+    
+    RiceRenderUniform riceRenderUniform;
+    riceRenderUniform.numBlocksInWidth = numBlocksInWidth;
+    riceRenderUniform.numBlocksInHeight = numBlocksInHeight;
+    riceRenderUniform.numBlocksEachSegment = 1;
+    
+    // Copy bit offsets
+    
+    for (int i = 0; i < bitOffsetsEveryHalfBlock.size(); i++) {
+      blockBitStartOffset[i] = bitOffsetsEveryHalfBlock[i];
+    }
+    
+    // Use reordered k table that was rearranged into big block order
+    
+    blockOptimalKTable = blockiOptimalKTableVec.data();
+    blockOptimalKTableLen = (int) blockiOptimalKTableVec.size();
+    
+    // Render for each big block
+    
+    for (int bigBlocki = 0; bigBlocki < (numBigBlocksInWidth * numBigBlocksInHeight); bigBlocki++) {
+      if ((0)) {
+        printf("render bigBlocki %d\n", bigBlocki);
+      }
+      
+      for (int tid = 0; tid < 32; tid++) {
+        kernel_render_rice_typed<blockDim>(decodedPixels32,
+                                           riceRenderUniform,
+                                           blockBitStartOffset.data(),
+                                           prefixBitsWordPtr,
+                                           blockOptimalKTable,
+                                           RenderRiceTypedDecode,
+                                           bigBlocki,
+                                           tid,
+                                           NULL);
+      }
+    }
+    
+    vector<uint8_t> decodedBytesVec(width*height);
+    memcpy(decodedBytesVec.data(), decodedPixels32, width*height);
+    uint8_t *pixels8 = decodedBytesVec.data();
+    
+    if ((1)) {
+      printf("decoded image order:\n");
+      
+      for (int row = 0; row < height; row++) {
+        for (int col = 0; col < width; col++) {
+          int offset = (row * width) + col;
+          int bVal = pixels8[offset];
+          printf("%3d, ", bVal);
+        }
+        printf("\n");
+      }
+      
+      printf("\n");
+    }
+    
+    for (int i = 0; i < (width*height); i++) {
+      uint8_t bval = pixels8[i];
+      uint8_t expected = inputImageOrderPixels[i];
+      if (bval != expected) {
+        int x = i % width;
+        int y = i / width;
+        XCTAssert(bval == expected, @"bval == expected : %d == %d : offset %d : x,y %d,%d", bval, expected, i, x, y);
+      }
+    }
+    
+    // Emit blocki as 32 bit values
+    
+    vector<uint32_t> blockiVec;
+    blockiVec.resize(width*4*height);
+    uint32_t *blockiVecPtr = blockiVec.data();
+    memset(blockiVecPtr, 0xFF, width*4*height);
+    
+    for (int tid = 0; tid < 32; tid++) {
+      kernel_render_rice_typed<blockDim>(NULL,
+                                         riceRenderUniform,
+                                         blockBitStartOffset.data(),
+                                         prefixBitsWordPtr,
+                                         blockOptimalKTable,
+                                         RenderRiceTypedBlocki,
+                                         0,
+                                         tid,
+                                         blockiVecPtr);
+    }
+    
+    if ((1)) {
+      printf("blocki order:\n");
+      
+      uint32_t *ptr = blockiVec.data();
+      
+      for (int row = 0; row < height; row++) {
+        for (int col = 0; col < width; col++) {
+          int offset = (row * width) + col;
+          int blocki = ptr[offset];
+          printf("%3d, ", blocki);
+        }
+        printf("\n");
+      }
+      
+      printf("\n");
+    }
+    
+    // Expected blocki is simple big block relative ordering sta
+    
+    uint32_t expectedBlocki[width*height] = {
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15
+    };
+    
+    for (int i = 0; i < (width*height); i++) {
+      uint32_t blocki = blockiVec[i];
+      uint32_t eBlocki = expectedBlocki[i];
+      XCTAssert(blocki == eBlocki, @"blocki == expected : %d == %d : offset %d", blocki, eBlocki, i);
+    }
+  }
+  
+  // ----------------------------
+  
+  // Start Metal config
+  
+  id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+  
+  MetalRenderContext *mrc = [[MetalRenderContext alloc] init];
+  
+  [mrc setupMetal:device];
+  
+  MetalRice2RenderContext *mRenderContext = [[MetalRice2RenderContext alloc] init];
+  
+  mRenderContext.computeKernelFunction = @"kernel_render_rice2";
+  
+  [mRenderContext setupRenderPipelines:mrc];
+  
+  MetalRice2RenderFrame *mRenderFrame = [[MetalRice2RenderFrame alloc] init];
+  
+  const int totalNumberOfBytes = width * height;
+  
+  assert((blockN * blockDim * blockDim) == totalNumberOfBytes);
+  
+  CGSize renderSize = CGSizeMake(width, height);
+  CGSize blockSize = CGSizeMake(blockDim, blockDim);
+  
+  [mRenderContext setupRenderTextures:mrc
+                           renderSize:renderSize
+                            blockSize:blockSize
+                          renderFrame:mRenderFrame];
+  
+  {
+    // Copy/Read compresed input (prefix bits)
+    
+    const uint32_t *in32Ptr = (const uint32_t *) riceEncodedVec.data();
+    const uint32_t inNumBytes = (uint32_t) riceEncodedVec.size();
+    
+    [mRenderContext ensureBitsBuffCapacity:mrc
+                                  numBytes:inNumBytes
+                               renderFrame:mRenderFrame];
+    
+    assert(inNumBytes == mRenderFrame.bitsBuff.length);
+    memcpy(mRenderFrame.bitsBuff.contents, in32Ptr, inNumBytes);
+  }
+  
+  {
+    // RiceRenderUniform
+    
+    assert(mRenderFrame.riceRenderUniform.length == sizeof(RiceRenderUniform));
+    
+    RiceRenderUniform & riceRenderUniform = *((RiceRenderUniform*) mRenderFrame.riceRenderUniform.contents);
+    
+    assert(((numBlocksInWidth * numBlocksInHeight) % 16) == 0); // Must be a multiple of 16 small blocks
+    
+    riceRenderUniform.numBlocksInWidth = numBlocksInWidth;
+    riceRenderUniform.numBlocksInHeight = numBlocksInHeight;
+  }
+  
+  {
+    // Copy block start bit table
+    
+    uint32_t *bitOffsetTableOutPtr = (uint32_t *) mRenderFrame.blockOffsetTableBuff.contents;
+    assert(blockBitStartOffset.size() == numOffsetsToCopy);
+    assert(mRenderFrame.blockOffsetTableBuff.length == (numOffsetsToCopy * sizeof(uint32_t)));
+    
+    for (int i = 0; i < blockBitStartOffset.size(); i++) {
+      uint32_t bitOffset = blockBitStartOffset[i];
+      bitOffsetTableOutPtr[i] = bitOffset;
+    }
+  }
+  
+  // Copy K table
+  
+  {
+    // Use reordered k table that was rearranged into big block order
+    
+    uint8_t * blockOptimalKTable = blockiOptimalKTableVec.data();
+    uint32_t blockOptimalKTableLen = (int) blockiOptimalKTableVec.size();
+    
+    assert(mRenderFrame.blockOptimalKTable.length == blockOptimalKTableLen);
+    memcpy(mRenderFrame.blockOptimalKTable.contents, blockOptimalKTable, blockOptimalKTableLen);
+    
+    if (1)
+    {
+      NSLog(@"kTable: %d", blockOptimalKTableLen);
+      
+      uint8_t *ptr = (uint8_t *) mRenderFrame.blockOptimalKTable.contents;
+      
+      for (int i = 0; i < blockOptimalKTableLen; i++) {
+        int val = ptr[i];
+        printf("%3d\n", val);
+        fflush(stdout);
+      }
+      
+      printf("done\n");
+    }
+  }
+  
+  id<MTLTexture> outputTexture = mRenderFrame.outputTexture;
+  
+  // Get a metal command buffer, render compute invocation into it
+  
+  CFTimeInterval start = CACurrentMediaTime();
+  
+  id <MTLCommandBuffer> commandBuffer = [mrc.commandQueue commandBuffer];
+  
+#if defined(DEBUG)
+  assert(commandBuffer);
+#endif // DEBUG
+  
+  commandBuffer.label = @"XCTestRenderCommandBuffer";
+  
+  // Put the code you want to measure the time of here.
+  
+  [mRenderContext renderRice:mrc
+               commandBuffer:commandBuffer
+                 renderFrame:mRenderFrame];
+  
+  // Wait for commands to be rendered
+  [commandBuffer commit];
+  [commandBuffer waitUntilCompleted];
+  
+  CFTimeInterval stop = CACurrentMediaTime();
+  
+  NSLog(@"measured time %.2f ms", (stop-start) * 1000);
+  
+  if (1)
+  {
+    NSLog(@"outputTexture: %d x %d", width, height);
+    
+    NSData *outputData = [mrc getBGRATextureAsBytes:outputTexture];
+    uint8_t *ptr = (uint8_t *) outputData.bytes;
+    
+    for (int row = 0; row < height; row++) {
+      for (int col = 0; col < width; col++) {
+        int offset = (row * width) + col;
+        int val = ptr[offset];
+        printf("%2d ", val);
+      }
+      printf("\n");
+      fflush(stdout);
+    }
+    
+    printf("done\n");
+  }
+  
+  // Compare output bytes in image order
+  
+  {
+    NSData *outputData = [mrc getBGRATextureAsBytes:outputTexture];
+    uint8_t *outputPrefixBytesPtr = (uint8_t *) outputData.bytes;
+    
+    // Image order original bytes
+    uint8_t *expectedBytesPtr = inputImageOrderPixels;
+    
+    int same = 1;
+    
+    if (1)
+    {
+      int numMismatched = 0;
+      
+      printf("validate outputTexture: %dx%d\n", width, height);
+      
+      for (int row = 0; row < height; row++) {
+        for (int col = 0; col < width; col++) {
+          int offset = (row * width) + col;
+          uint8_t outputVal = outputPrefixBytesPtr[offset];
+          uint8_t expectedVal = expectedBytesPtr[offset];
+          if (outputVal != expectedVal && numMismatched < 10) {
+            printf("output[%3d,%3d] mismatch : output != expected : %d != %d\n", col, row, outputVal, expectedVal);
+            same = 0;
+            numMismatched += 1;
+          }
+        }
+      }
+    }
+    
+    XCTAssert(same == 1);
+    
+    NSLog(@"validated %d bytes", (int)width*height);
+  }
+  
+  // Assume the above is working, run the decode process over and over
+  // to get accurate timing results
+  
+  [self measureBlock:^{
+    // Get a metal command buffer, render compute invocation into it
+    
+    CFTimeInterval start = CACurrentMediaTime();
+    
+    id <MTLCommandBuffer> commandBuffer = [mrc.commandQueue commandBuffer];
+    
+#if defined(DEBUG)
+    assert(commandBuffer);
+#endif // DEBUG
+    
+    commandBuffer.label = @"XCTestRenderCommandBuffer";
+    
+    {
+      // Copy into blockOffsetTableBuff
+      
+      uint32_t *bitOffsetTableOutPtr = (uint32_t *) mRenderFrame.blockOffsetTableBuff.contents;
+      assert(blockBitStartOffset.size() == numOffsetsToCopy);
+      assert(mRenderFrame.blockOffsetTableBuff.length == (numOffsetsToCopy * sizeof(uint32_t)));
+      
+      for (int i = 0; i < blockBitStartOffset.size(); i++) {
+        uint32_t bitOffset = blockBitStartOffset[i];
+        bitOffsetTableOutPtr[i] = bitOffset;
+      }
+    }
+    
+    // Put the code you want to measure the time of here.
+    
+    [mRenderContext renderRice:mrc
+                 commandBuffer:commandBuffer
+                   renderFrame:mRenderFrame];
+    
+    // Wait for commands to be rendered
+    [commandBuffer commit];
+    [commandBuffer waitUntilCompleted];
+    
+    CFTimeInterval stop = CACurrentMediaTime();
+    
+    NSLog(@"measured time %.2f ms", (stop-start) * 1000);
+  }];
+  
+  return;
+}
+
+- (void)testRiceRender4x4_k1 {
+  
+  const int constK = 1;
+  
+  const int blockDim = 8;
+  const int blockiDim = 4;
+  
+  // 8x8 blocks at 1x1 big blocks, aka 32x32
+  const int width = 4 * blockDim;
+  const int height = 4 * blockDim;
+  
+  const int numBlocksInWidth = width / blockDim;
+  const int numBlocksInHeight = height / blockDim;
+  
+  const int numBigBlocksInWidth = width / (blockDim * blockiDim);
+  const int numBigBlocksInHeight = height / (blockDim * blockiDim);
+  
+  const int blockN = (width * height) / (blockDim * blockDim);
+  
+  const int numOffsetsToCopy = (blockN * 2);
+  
+  // 8x8 blocks
+  
+  vector<uint8_t> inputPixelsVec;
+  inputPixelsVec.resize(width*height);
+  uint8_t *inputPixels = inputPixelsVec.data();
+  
+  vector<uint8_t> inputImageOrderPixelsVec;
+  inputImageOrderPixelsVec.resize(width*height);
+  uint8_t *inputImageOrderPixels = inputImageOrderPixelsVec.data();
+  
+  vector<uint8_t> outputPixelsVec;
+  outputPixelsVec.resize(width*height);
+  uint8_t *outputPixels = outputPixelsVec.data();
+  
+  vector<uint32_t> blockBitStartOffset;
+  vector<uint8_t> riceEncodedVec;
+  
+  vector<uint8_t> blockOptimalKTableVec(blockN + 1);
+  memset(blockOptimalKTableVec.data(), constK, (int)blockOptimalKTableVec.size());
+  
+  //  int over = 1;
+  //  for (int row = 0; row < height; row++) {
+  //    for (int col = 0; col < width; col++) {
+  //      int offset = (row * width) + col;
+  //      int bVal = offset & 63;
+  //      inputPixels[offset] = bVal;
+  //
+  //      if ((offset != 0) && (bVal == 0)) {
+  //        inputPixels[offset] += over;
+  //        over += 1;
+  //      }
+  //    }
+  //  }
+  
+  // Incrementing values from row number
+  
+  for (int row = 0; row < height; row++) {
+    // Write col 0 for each row
+    
+    int bVal;
+    
+    {
+      int col = 0;
+      int offset = (row * width) + col;
+      bVal = row & 0xFF;
+      inputPixels[offset] = bVal;
+    }
+    
+    for (int col = 1; col < width; col++) {
+      int offset = (row * width) + col;
+      bVal += 1;
+      inputPixels[offset] = bVal;
+    }
+  }
+  
+  // Image is generated in block order so that the ascending
+  // values are stored 1 block at a time.
+  
+  if ((1)) {
+    printf("8x8 block order:\n");
+    
+    for (int row = 0; row < height; row++) {
+      for (int col = 0; col < width; col++) {
+        int offset = (row * width) + col;
+        int bVal = inputPixels[offset];
+        printf("%2d ", bVal);
+      }
+      printf("\n");
+    }
+    
+    printf("\n");
+  }
+  
+  // Reorder into image order and print
+  
+  {
+    // Reorder bytes from block order to image order via flatten
+    
+    BlockDecoder<uint8_t, blockDim> db;
+    
+    uint8_t *inPrefixBytesPtr = inputPixels;
+    
+    db.blockVectors.resize(numBlocksInWidth * numBlocksInHeight);
+    
+    for (int blocki = 0; blocki < (numBlocksInWidth * numBlocksInHeight); blocki++) {
+      vector<uint8_t> & blockVec = db.blockVectors[blocki];
+      // Append pixels from block by block data
+      
+      blockVec.resize(blockDim * blockDim);
+      memcpy(blockVec.data(), inPrefixBytesPtr, blockDim * blockDim * sizeof(uint8_t));
+      inPrefixBytesPtr += (blockDim * blockDim);
+    }
+    
+    db.flattenAndCrop(inputImageOrderPixels,
+                      width*height,
+                      numBlocksInWidth,
+                      numBlocksInHeight,
+                      width,
+                      height);
+  }
+  
+  
+  if ((1)) {
+    printf("original image order:\n");
+    
+    for (int row = 0; row < height; row++) {
+      for (int col = 0; col < width; col++) {
+        int offset = (row * width) + col;
+        int bVal = inputImageOrderPixels[offset];
+        printf("%2d ", bVal);
+      }
+      printf("\n");
+    }
+    
+    printf("\n");
+  }
+  
+  // Generate blocki ordering
+  
+  vector<uint32_t> blockiVec;
+  vector<uint32_t> blockiLookupVec;
+  
+  block_reorder_blocki<blockDim,blockiDim>(width, height, blockiVec, blockiLookupVec);
+  
+  // Invoke s32 layout logic with ordered blocki generated above
+  
+  int numSegments = 32;
+  
+  uint8_t *inputPixelsPtr = inputPixels;
+  uint32_t *blockiPtr = blockiLookupVec.data();
+  
+  vector<uint8_t> blockiReorderedVec;
+  vector<uint8_t> blockiOptimalKTableVec;
+  vector<uint8_t> halfBlockOptimalKTableVec;
+  
+  blockiOptimalKTableVec = blockOptimalKTableVec;
+  
+  block_s32_format_block_layout(inputPixelsPtr,
+                                outputPixels,
+                                blockN,
+                                blockDim,
+                                numSegments,
+                                blockiPtr,
+                                &blockiReorderedVec,
+                                &blockiOptimalKTableVec,
+                                &halfBlockOptimalKTableVec);
+  
+  XCTAssert(blockiOptimalKTableVec.size() == blockOptimalKTableVec.size(), @"same size");
+  XCTAssert(inputPixelsVec == blockiReorderedVec, @"blocki reordered pixels");
+  XCTAssert(blockiOptimalKTableVec == blockOptimalKTableVec, @"same k values");
+  
+  if ((1)) {
+    printf("big block s32 image order:\n");
+    
+    for (int row = 0; row < height; row++) {
+      for (int col = 0; col < width; col++) {
+        int offset = (row * width) + col;
+        int bVal = outputPixels[offset];
+        printf("%2d ", bVal);
+      }
+      printf("\n");
+    }
+    
+    printf("\n");
+  }
+  
+  // Print blocki values in block order
+  
+  if ((1)) {
+    printf("block order:\n");
+    
+    int offset = 0;
+    
+    for ( ; offset < (width * height); ) {
+      printf("offset %3d (%d at a time)\n", offset, numSegments);
+      
+      for (int i = 0; i < numSegments; i++) {
+        int bVal = outputPixels[offset++];
+        printf("%3d ", bVal);
+      }
+      printf("\n");
+    }
+  }
+  
+  // Read 16 small blocks at a time from 32 streams
+  // so that a big block of 32x32 is read in with
+  // 8 reads per small block.
+  
+  vector<uint8_t> decodedS32PixelsVec(width*height);
+  uint8_t *decodedS32Pixels = decodedS32PixelsVec.data();
+  
+  block_s32_flatten_block_layout(outputPixels,
+                                 decodedS32Pixels,
+                                 blockN,
+                                 blockDim,
+                                 numSegments);
+  
+  if ((1)) {
+    printf("interleaved block order:\n");
+    
+    int offset = 0;
+    
+    for ( ; offset < (width * height); ) {
+      printf("offset %3d (%d at a time)\n", offset, numSegments);
+      
+      for (int i = 0; i < numSegments; i++) {
+        int bVal = decodedS32Pixels[offset++];
+        printf("%2d, ", bVal);
+      }
+      printf("\n");
+    }
+  }
+  
+  // Validate output flat block order against original block input order
+  
+  {
+    int numFails = 0;
+    
+    for (int i = 0; i < (width*height); i++) {
+      uint8_t bval = decodedS32Pixels[i];
+      uint8_t expected = blockiReorderedVec[i];
+      if (bval != expected) {
+        int x = i % width;
+        int y = i / width;
+        if (numFails < 10) {
+          XCTAssert(bval == expected, @"bval == expected : %d == %d : offset %d : x,y %d,%d", bval, expected, i, x, y);
+          numFails += 1;
+        }
+      }
+    }
+  }
+  
+  // Encode bytes as rice codes and then decode with software impl like compute shader
+  
+  {
+    int width4 = width / sizeof(uint32_t);
+    vector<uint32_t> decodedPixels32Vec(width4*height);
+    memset(decodedPixels32Vec.data(), 0xFF, decodedPixels32Vec.size() * sizeof(uint32_t));
+    uint32_t *decodedPixels32 = decodedPixels32Vec.data();
+    
+    // Encode bytes as rice bits
+    
+    int numBlockSymbols = blockN * blockDim * blockDim;
+    const uint8_t *blockSymbols = outputPixels;
+    
+    uint8_t *blockOptimalKTable = halfBlockOptimalKTableVec.data();
+    int blockOptimalKTableLen = (int) halfBlockOptimalKTableVec.size();
+    
+    riceEncodedVec = encode(blockSymbols,
+                            numBlockSymbols,
+                            blockDim,
+                            blockOptimalKTable,
+                            blockOptimalKTableLen,
+                            blockN);
+    
+#if defined(DEBUG)
+    {
+      vector<uint8_t> outBufferVec(width*height);
+      uint8_t *outBuffer = outBufferVec.data();
+      
+      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
+                                                               numBlockSymbols,
+                                                               blockDim,
+                                                               blockOptimalKTable,
+                                                               blockOptimalKTableLen,
+                                                               blockN,
+                                                               1);
+      
+      decode(riceEncodedVec.data(),
+             (int)riceEncodedVec.size(),
+             outBuffer,
+             width*height,
+             blockDim,
+             blockOptimalKTable,
+             blockOptimalKTableLen,
+             blockN,
+             bitOffsetsEveryVal.data());
+      
+      int cmp = memcmp(blockSymbols, outBuffer, width*height);
+      assert(cmp == 0);
+      
+      // Decode with non-stream rice method and validate against known good decoded values stream
+      
+      decodeParallelCheck(riceEncodedVec.data(),
+                          (int)riceEncodedVec.size(),
+                          outBuffer,
+                          width*height,
+                          blockDim,
+                          blockOptimalKTable,
+                          blockOptimalKTableLen,
+                          blockN,
+                          bitOffsetsEveryVal.data());
+    }
+#endif // DEBUG
+    
+    uint32_t *prefixBitsWordPtr = (uint32_t *) riceEncodedVec.data();
+    
+    // Fill in inoutBlockBitOffsetTable with bit offsets every 16 values (1/2 block)
+    
+    vector<uint32_t> bitOffsetsEveryHalfBlock = generateBitOffsets(blockSymbols,
+                                                                   numBlockSymbols,
+                                                                   blockDim,
+                                                                   blockOptimalKTable,
+                                                                   blockOptimalKTableLen,
+                                                                   blockN,
+                                                                   (blockDim * blockDim)/2);
+    
+    assert(bitOffsetsEveryHalfBlock.size() == numOffsetsToCopy);
+    
+    blockBitStartOffset.resize(numOffsetsToCopy);
+    
+    RiceRenderUniform riceRenderUniform;
+    riceRenderUniform.numBlocksInWidth = numBlocksInWidth;
+    riceRenderUniform.numBlocksInHeight = numBlocksInHeight;
+    riceRenderUniform.numBlocksEachSegment = 1;
+    
+    // Copy bit offsets
+    
+    for (int i = 0; i < bitOffsetsEveryHalfBlock.size(); i++) {
+      blockBitStartOffset[i] = bitOffsetsEveryHalfBlock[i];
+    }
+    
+    // Use reordered k table that was rearranged into big block order
+    
+    blockOptimalKTable = blockiOptimalKTableVec.data();
+    blockOptimalKTableLen = (int) blockiOptimalKTableVec.size();
+    
+    // Render for each big block
+    
+    for (int bigBlocki = 0; bigBlocki < (numBigBlocksInWidth * numBigBlocksInHeight); bigBlocki++) {
+      if ((0)) {
+        printf("render bigBlocki %d\n", bigBlocki);
+      }
+      
+      for (int tid = 0; tid < 32; tid++) {
+        kernel_render_rice_typed<blockDim>(decodedPixels32,
+                                           riceRenderUniform,
+                                           blockBitStartOffset.data(),
+                                           prefixBitsWordPtr,
+                                           blockOptimalKTable,
+                                           RenderRiceTypedDecode,
+                                           bigBlocki,
+                                           tid,
+                                           NULL);
+      }
+    }
+    
+    vector<uint8_t> decodedBytesVec(width*height);
+    memcpy(decodedBytesVec.data(), decodedPixels32, width*height);
+    uint8_t *pixels8 = decodedBytesVec.data();
+    
+    if ((1)) {
+      printf("decoded image order:\n");
+      
+      for (int row = 0; row < height; row++) {
+        for (int col = 0; col < width; col++) {
+          int offset = (row * width) + col;
+          int bVal = pixels8[offset];
+          printf("%3d, ", bVal);
+        }
+        printf("\n");
+      }
+      
+      printf("\n");
+    }
+    
+    for (int i = 0; i < (width*height); i++) {
+      uint8_t bval = pixels8[i];
+      uint8_t expected = inputImageOrderPixels[i];
+      if (bval != expected) {
+        int x = i % width;
+        int y = i / width;
+        XCTAssert(bval == expected, @"bval == expected : %d == %d : offset %d : x,y %d,%d", bval, expected, i, x, y);
+      }
+    }
+    
+    // Emit blocki as 32 bit values
+    
+    vector<uint32_t> blockiVec;
+    blockiVec.resize(width*4*height);
+    uint32_t *blockiVecPtr = blockiVec.data();
+    memset(blockiVecPtr, 0xFF, width*4*height);
+    
+    for (int tid = 0; tid < 32; tid++) {
+      kernel_render_rice_typed<blockDim>(NULL,
+                                         riceRenderUniform,
+                                         blockBitStartOffset.data(),
+                                         prefixBitsWordPtr,
+                                         blockOptimalKTable,
+                                         RenderRiceTypedBlocki,
+                                         0,
+                                         tid,
+                                         blockiVecPtr);
+    }
+    
+    if ((1)) {
+      printf("blocki order:\n");
+      
+      uint32_t *ptr = blockiVec.data();
+      
+      for (int row = 0; row < height; row++) {
+        for (int col = 0; col < width; col++) {
+          int offset = (row * width) + col;
+          int blocki = ptr[offset];
+          printf("%3d, ", blocki);
+        }
+        printf("\n");
+      }
+      
+      printf("\n");
+    }
+    
+    // Expected blocki is simple big block relative ordering sta
+    
+    uint32_t expectedBlocki[width*height] = {
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,  3,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      4,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  5,  5,  5,  6,  6,  6,  6,  6,  6,  6,  6,  7,  7,  7,  7,  7,  7,  7,  7,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      8,  8,  8,  8,  8,  8,  8,  8,  9,  9,  9,  9,  9,  9,  9,  9, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15,
+      12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15
+    };
+    
+    for (int i = 0; i < (width*height); i++) {
+      uint32_t blocki = blockiVec[i];
+      uint32_t eBlocki = expectedBlocki[i];
+      XCTAssert(blocki == eBlocki, @"blocki == expected : %d == %d : offset %d", blocki, eBlocki, i);
+    }
+  }
+  
+  // ----------------------------
+  
+  // Start Metal config
+  
+  id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+  
+  MetalRenderContext *mrc = [[MetalRenderContext alloc] init];
+  
+  [mrc setupMetal:device];
+  
+  MetalRice2RenderContext *mRenderContext = [[MetalRice2RenderContext alloc] init];
+  
+  mRenderContext.computeKernelFunction = @"kernel_render_rice2";
+  
+  [mRenderContext setupRenderPipelines:mrc];
+  
+  MetalRice2RenderFrame *mRenderFrame = [[MetalRice2RenderFrame alloc] init];
+  
+  const int totalNumberOfBytes = width * height;
+  
+  assert((blockN * blockDim * blockDim) == totalNumberOfBytes);
+  
+  CGSize renderSize = CGSizeMake(width, height);
+  CGSize blockSize = CGSizeMake(blockDim, blockDim);
+  
+  [mRenderContext setupRenderTextures:mrc
+                           renderSize:renderSize
+                            blockSize:blockSize
+                          renderFrame:mRenderFrame];
+  
+  {
+    // Copy/Read compresed input (prefix bits)
+    
+    const uint32_t *in32Ptr = (const uint32_t *) riceEncodedVec.data();
+    const uint32_t inNumBytes = (uint32_t) riceEncodedVec.size();
+    
+    [mRenderContext ensureBitsBuffCapacity:mrc
+                                  numBytes:inNumBytes
+                               renderFrame:mRenderFrame];
+    
+    assert(inNumBytes == mRenderFrame.bitsBuff.length);
+    memcpy(mRenderFrame.bitsBuff.contents, in32Ptr, inNumBytes);
+  }
+  
+  {
+    // RiceRenderUniform
+    
+    assert(mRenderFrame.riceRenderUniform.length == sizeof(RiceRenderUniform));
+    
+    RiceRenderUniform & riceRenderUniform = *((RiceRenderUniform*) mRenderFrame.riceRenderUniform.contents);
+    
+    assert(((numBlocksInWidth * numBlocksInHeight) % 16) == 0); // Must be a multiple of 16 small blocks
+    
+    riceRenderUniform.numBlocksInWidth = numBlocksInWidth;
+    riceRenderUniform.numBlocksInHeight = numBlocksInHeight;
+  }
+  
+  {
+    // Copy block start bit table
+    
+    uint32_t *bitOffsetTableOutPtr = (uint32_t *) mRenderFrame.blockOffsetTableBuff.contents;
+    assert(blockBitStartOffset.size() == numOffsetsToCopy);
+    assert(mRenderFrame.blockOffsetTableBuff.length == (numOffsetsToCopy * sizeof(uint32_t)));
+    
+    for (int i = 0; i < blockBitStartOffset.size(); i++) {
+      uint32_t bitOffset = blockBitStartOffset[i];
+      bitOffsetTableOutPtr[i] = bitOffset;
+    }
+  }
+  
+  // Copy K table
+  
+  {
+    // Use reordered k table that was rearranged into big block order
+    
+    uint8_t * blockOptimalKTable = blockiOptimalKTableVec.data();
+    uint32_t blockOptimalKTableLen = (int) blockiOptimalKTableVec.size();
+    
+    assert(mRenderFrame.blockOptimalKTable.length == blockOptimalKTableLen);
+    memcpy(mRenderFrame.blockOptimalKTable.contents, blockOptimalKTable, blockOptimalKTableLen);
+    
+    if (1)
+    {
+      NSLog(@"kTable: %d", blockOptimalKTableLen);
+      
+      uint8_t *ptr = (uint8_t *) mRenderFrame.blockOptimalKTable.contents;
+      
+      for (int i = 0; i < blockOptimalKTableLen; i++) {
+        int val = ptr[i];
+        printf("%3d\n", val);
+        fflush(stdout);
+      }
+      
+      printf("done\n");
+    }
+  }
+  
+  id<MTLTexture> outputTexture = mRenderFrame.outputTexture;
+  
+  // Get a metal command buffer, render compute invocation into it
+  
+  CFTimeInterval start = CACurrentMediaTime();
+  
+  id <MTLCommandBuffer> commandBuffer = [mrc.commandQueue commandBuffer];
+  
+#if defined(DEBUG)
+  assert(commandBuffer);
+#endif // DEBUG
+  
+  commandBuffer.label = @"XCTestRenderCommandBuffer";
+  
+  // Put the code you want to measure the time of here.
+  
+  [mRenderContext renderRice:mrc
+               commandBuffer:commandBuffer
+                 renderFrame:mRenderFrame];
   
   // Wait for commands to be rendered
   [commandBuffer commit];

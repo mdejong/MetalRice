@@ -18,8 +18,8 @@ using namespace std;
 // Decode N symbols and write to pointer location, this impl reads all
 // the symbols in the associated stream.
 
-template <typename T>
-void DecodeNPrefixBytes(RiceDecodeBlocks<T> & rdb,
+template <typename T, typename R>
+void DecodeNPrefixBytes(RiceDecodeBlocks<T, R> & rdb,
                         const int N,
                         const int blockDim,
                         const int numBlocks,
@@ -78,7 +78,7 @@ void DecodeNPrefixBytes(RiceDecodeBlocks<T> & rdb,
 // 32 substreams as indicated by the bit offset starting location
 // for the sub stream and the length.
 
-template <typename T>
+template <typename T, typename R>
 void DecodeNPrefixBytesOneSegmentThread(
                                         const int N,
                                         const int blockDim,
@@ -90,7 +90,7 @@ void DecodeNPrefixBytesOneSegmentThread(
                                         uint32_t *segmentBlockBitStartOffsetPtr)
 {
   // Thread specific bit stream
-  RiceDecodeBlocks<T> rdb;
+  RiceDecodeBlocks<T,R> rdb;
   
 #if defined(DEBUG)
   assert(N == (blockDim * blockDim * numBlocks));
@@ -542,7 +542,11 @@ typedef enum {
   RenderRiceTypedDecode,
 } RenderRiceTyped;
 
-typedef CachedBits<uint32_t, const uint32_t *, uint16_t, uint8_t> CachedBits3216;
+//typedef CachedBits<uint32_t, const uint32_t *, uint16_t, uint8_t> CachedBits3216;
+typedef CachedBits<uint32_t, const uint32_t *, uint32_t, uint8_t> CachedBits3232;
+
+//typedef RiceDecodeBlocks<CachedBits3216, uint16_t, false> RiceDecodeBlocksT;
+typedef RiceDecodeBlocks<CachedBits3232, uint32_t, false> RiceDecodeBlocksT;
 
 template <const int D>
 void kernel_render_rice_typed(
@@ -565,7 +569,7 @@ void kernel_render_rice_typed(
   // correspond to a half block.
   
   // Thread specific bit stream and registers
-  RiceDecodeBlocks<CachedBits3216, false> rdb;
+  RiceDecodeBlocksT rdb;
   
   //const ushort blockDim = RICE_SMALL_BLOCK_DIM;
   const ushort blockDim = D;
@@ -836,10 +840,36 @@ void kernel_render_rice_typed(
           
           continue;
         } else if (rType == RenderRiceTypedDecode) {
-          prefixByte0 = rice_rdb_decode_symbol(rdb, k);
-          prefixByte1 = rice_rdb_decode_symbol(rdb, k);
-          prefixByte2 = rice_rdb_decode_symbol(rdb, k);
-          prefixByte3 = rice_rdb_decode_symbol(rdb, k);
+          //          prefixByte0 = rice_rdb_decode_symbol(rdb, k);
+          //          prefixByte1 = rice_rdb_decode_symbol(rdb, k);
+          //          prefixByte2 = rice_rdb_decode_symbol(rdb, k);
+          //          prefixByte3 = rice_rdb_decode_symbol(rdb, k);
+          
+//          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
+//          prefixByte0 |= rdb.decodeSuffixByte(k, true, k, false);
+//
+//          prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
+//          prefixByte1 |= rdb.decodeSuffixByte(k, true, k, false);
+//
+//          prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
+//          prefixByte2 |= rdb.decodeSuffixByte(k, true, k, false);
+//
+//          prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
+//          prefixByte3 |= rdb.decodeSuffixByte(k, true, k, false);
+          
+          
+          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
+          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
+          
+          prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte1 |= rdb.decodeSuffixByte(k, true, k, false);
+          
+          prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte2 |= rdb.decodeSuffixByte(k, true, k, false);
+          
+          prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
+          prefixByte3 |= rdb.decodeSuffixByte(k, true, k, false);
+
         } else {
           assert(0);
         }

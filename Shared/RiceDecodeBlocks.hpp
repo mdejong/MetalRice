@@ -32,212 +32,28 @@
 
 //#define EMIT_RICEDECODEBLOCKS_DEBUG_OUTPUT
 
-// rice util method that decodes on stream from bit stream
+// Read suffix from symbol input, note that this method is not optimal
+// for the k = 0 case since the whole block is not skipped.
 
 template <typename T>
 uint8_t rice_rdb_decode_symbol(
-                               CACHEDBIT_THREAD_SPECIFIC T & rdb,
-                               const uint8_t k)
+                                      CACHEDBIT_THREAD_SPECIFIC T & rdb,
+                                      const uint8_t k)
 {
-#if defined(DEBUG)
-  const bool debug = false;
-#endif // DEBUG
-
-#if defined(DEBUG)
-  if (debug) {
-    printf("rice_rdb_decode_symbol bits: %s and rdb.regN %d\n", get_code_bits_as_string64(rdb.reg, 16).c_str(), rdb.regN);
-  }
-#endif // DEBUG
-
-  ushort symbol;
-  
-  {
-#if defined(DEBUG)
-    assert(rdb.regN < 16);
-#endif // DEBUG
-
-    rdb.cachedBits.refill(rdb.reg, rdb.regN);
-    
-#if defined(DEBUG)
-    assert(rdb.regN == 16);
-#endif // DEBUG
-  }
-  
-  if (rdb.reg == 0) {
-#if defined(DEBUG)
-    assert(rdb.regN == 16);
-#endif // DEBUG
-    
-    rdb.regN = 0;
-    
-    // Ignore the 16 zero bits and reload from input stream
-    
-    rdb.cachedBits.refill(rdb.reg, rdb.regN);
-    
-#if defined(DEBUG)
-    assert(rdb.regN == 16);
-#endif // DEBUG
-    
-#if defined(DEBUG)
-    if (debug) {
-      printf("bits (del16): %s\n", get_code_bits_as_string64(rdb.reg, 16).c_str());
-    }
-#endif // DEBUG
-    
-# if defined(DEBUG)
-    assert(rdb.regN >= 8);
-# endif // DEBUG
-    
-    symbol = rdb.reg >> 8;
-    
-#if defined(DEBUG)
-    if (debug) {
-      printf("symbol      : %s\n", get_code_bits_as_string64(symbol, 8).c_str());
-    }
-#endif // DEBUG
-    
-    rdb.reg <<= 8;
-    
-#if defined(DEBUG)
-    if (debug) {
-      printf("bits (del8) : %s\n", get_code_bits_as_string64(rdb.reg, 16).c_str());
-    }
-#endif // DEBUG
-    
-# if defined(DEBUG)
-    assert(rdb.regN >= 8);
-# endif // DEBUG
-    
-    rdb.regN -= 8;
-    
-#if defined(RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL)
-    rdb.totalNumBitsRead += 24;
-#endif // RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL
-  } else {
-    ushort numBitsRead;
-    ushort q;
-    
-# if defined(DEBUG)
-    assert(rdb.reg != 0);
-# endif // DEBUG
-    
-    // clz impl
-    
-#if defined(RICEDECODEBLOCKS_METAL_CLZ)
-    // clz on 16 bit register in Metal. Metal shading language
-    // spec indicates that clz(0) returns 16 in this situation.
-    q = clz(rdb.reg);
-#else // RICEDECODEBLOCKS_METAL_CLZ
-    // clz with 32 bit gcc builtin instruction
-    
-    uint32_t bits = ((uint32_t) rdb.reg) << 16;
-    q = __builtin_clz(bits);
-    
-# if defined(DEBUG)
-    if (debug) {
-      printf("rdb.reg : %s\n", get_code_bits_as_string64(rdb.reg, 16).c_str());
-      printf("bits    : %s\n", get_code_bits_as_string64(bits, 32).c_str());
-    }
-# endif // DEBUG
-#endif // RICEDECODEBLOCKS_METAL_CLZ
-    
-    symbol = q << k;
-    
-#if defined(DEBUG)
-    if (debug) {
-      printf("q (num leading zeros): %d\n", q);
-    }
-    if (debug) {
-      printf("symbol      : %s\n", get_code_bits_as_string64(symbol, 8).c_str());
-    }
-# endif // DEBUG
-    
-    // Shift left to place MSB of remainder at the MSB of register
-    numBitsRead = (q + 1);
-    rdb.reg <<= numBitsRead;
-    
-#if defined(DEBUG)
-    if (debug) {
-      printf("lshift   %2d : %s\n", (q + 1), get_code_bits_as_string64(rdb.reg, 16).c_str());
-    }
-# endif // DEBUG
-    
-# if defined(DEBUG)
-    assert(rdb.regN >= numBitsRead);
-# endif // DEBUG
-    rdb.regN -= numBitsRead;
-    
-    // Reload so that REM bits will always be available.
-    // In the case of k = 0 no additional bits are loaded
-    // so that the next loop can always unconditionally
-    // reload since regN would always be LT 16.
-    
-    if (rdb.regN < k) {
-# if defined(DEBUG)
-      assert(k != 0);
-# endif // DEBUG
-      
-      rdb.cachedBits.refill(rdb.reg, rdb.regN);
-    }
-    
-# if defined(DEBUG)
-    assert(rdb.regN >= k);
-# endif // DEBUG
-    
-    // Shift right to place LSB of remainder at bit offset 0
-    uint8_t rem = rdb.reg >> (16 - k);
-    
-#if defined(DEBUG)
-    if (debug) {
-      printf("rem         : %s\n", get_code_bits_as_string64(rem, 8).c_str());
-    }
-# endif // DEBUG
-    
-    symbol |= rem;
-    
-#if defined(DEBUG)
-    if (debug) {
-      printf("symbol      : %s\n", get_code_bits_as_string64(symbol, 8).c_str());
-    }
-# endif // DEBUG
-    
-# if defined(DEBUG)
-    assert(rdb.regN >= k);
-# endif // DEBUG
-    rdb.regN -= k;
-    // was already shifted left by (q + 1) above, so shift left to consume rem bits
-    rdb.reg <<= k;
-    
-#if defined(DEBUG)
-    if (debug) {
-      printf("lshift2  %2d : %s\n", k, get_code_bits_as_string64(rdb.reg, 16).c_str());
-    }
-#endif // DEBUG
-    
-#if defined(RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL)
-    numBitsRead += k;
-    rdb.totalNumBitsRead += numBitsRead;
-#endif // RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL
-  }
-  
-#if defined(DEBUG)
-  if (debug) {
-    printf("append decoded symbol = %d\n", symbol);
-  }
-#endif // DEBUG
-  
-  return symbol;
+  ushort prefixByte = rdb.decodePrefixByte(k, false, 0, true);
+  prefixByte |= rdb.decodeSuffixByte(k, false, 0, true);
+  return prefixByte;
 }
 
 // RiceDecodeBlocks
 
-template <typename T, const bool ALWAYS_REFILL = false>
+template <typename T, typename R, const bool ALWAYS_REFILL = false>
 class RiceDecodeBlocks
 {
 public:
   
   T cachedBits;
-  uint16_t reg;
+  R reg;
   uint8_t regN;
   
 #if defined(RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL)
@@ -255,7 +71,7 @@ public:
 #endif // RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL
   {
   }
-  
+
   // Parse a prefix byte from the stream, returns CLZ+1
   // and shifts modified bits out of the register. This
   // logic must assume that at least 1 bit is always
@@ -265,7 +81,7 @@ public:
 #if defined(EMIT_RICEDECODEBLOCKS_DEBUG_OUTPUT)
     
 # if defined(PRIVATE_METAL_SHADER_COMPILATION)
-    #error "parsePrefixByte and PRIVATE_METAL_SHADER_COMPILATION"
+#error "parsePrefixByte and PRIVATE_METAL_SHADER_COMPILATION"
 # endif // METAL_COMP_DEFINE
     
     const bool debug = false;
@@ -300,13 +116,13 @@ public:
 # if defined(PRIVATE_METAL_SHADER_COMPILATION)
 #error "assert and PRIVATE_METAL_SHADER_COMPILATION"
 # endif // PRIVATE_METAL_SHADER_COMPILATION
-      assert(regN < 16);
+      assert(regN < numRegBits());
 #endif // DEBUG
       
       cachedBits.refill(reg, regN);
       
 #if defined(DEBUG)
-      assert(regN == 16);
+      assert(regN == numRegBits());
 #endif // DEBUG
     }
     
@@ -323,11 +139,16 @@ public:
 #else // RICEDECODEBLOCKS_METAL_CLZ
     // clz with 32 bit gcc builtin instruction
     unsigned int clz;
-    if (reg == 0) {
+    if ((reg >> (numRegBits() - 16)) == 0) {
       // __builtin_clz(0) is undefined
       clz = 16 + 16;
     } else {
-      clz = __builtin_clz((unsigned int) reg);
+      unsigned int reg32 = reg;
+      if (numRegBits() == 32) {
+        reg32 >>= 8;
+        reg32 >>= 8;
+      }
+      clz = __builtin_clz(reg32);
     }
 #if defined(DEBUG)
     assert(clz >= 16);
@@ -345,7 +166,7 @@ public:
 #if defined(DEBUG)
     // valid prefixCount range (1, 16) not that in the
     // case of 16 zeros the prefixCount result would be 17
-    if (reg == 0) {
+    if ((reg >> (numRegBits() - 16)) == 0) {
       assert(prefixCount == 17);
     } else {
       assert(prefixCount >= 1 && prefixCount <= 16);
@@ -371,7 +192,7 @@ public:
     //reg <<= shiftNumBits;
     //regN -= shiftNumBits;
     //#else // RICEDECODEBLOCKS_METAL_CLZ
-    if (shiftNumBits == 16) {
+    if (shiftNumBits == numRegBits()) {
       reg = 0;
       regN = 0;
     } else {
@@ -391,6 +212,418 @@ public:
 #endif // EMIT_RICEDECODEBLOCKS_DEBUG_OUTPUT
     
     return prefixCount;
+  }
+  
+  // Return the number of bits width that reg is
+  
+  inline
+  uint8_t numRegBits() {
+    // Calc num bits that can be helsd by type
+    return sizeof(reg) * 8;
+  }
+  
+  // Execute clz on 16 or 32 bit register, returns q.
+  // When successful this method returns a value in the range
+  // (0, 15) otherwise a value larger than 15 can be returned.
+  
+  inline
+  ushort clzImpl() {
+#if defined(DEBUG)
+    const bool debug = false;
+#endif // DEBUG
+
+    ushort q;
+    
+    // clz impl
+    
+#if defined(RICEDECODEBLOCKS_METAL_CLZ)
+    // clz on 16 bit register in Metal. Metal shading language
+    // spec indicates that clz(0) returns 16 in this situation.
+    
+    if (numRegBits() == 16) {
+      // 16 bit register
+      q = clz(reg);
+    } else {
+      // 32 bit register
+      ushort reg16 = reg >> 16;
+      q = clz(reg16);
+    }
+#else // RICEDECODEBLOCKS_METAL_CLZ
+    // clz with 32 bit gcc builtin instruction
+    
+    uint32_t clzBits;
+    
+    if (numRegBits() == 16) {
+      // 16 bits must be expanded to left anchored 32 bits
+      clzBits = ((uint32_t) reg) << 16;
+    } else {
+      // 32 bits
+      clzBits = reg;
+    }
+    
+    if (clzBits == 0) {
+      // __builtin_clz(0) is undefined, return 16 for either 16 or 32 sized registers
+      q = 16;
+    } else {
+      q = __builtin_clz(clzBits);
+    }
+    
+# if defined(DEBUG)
+    if (debug) {
+      printf("reg     : %s\n", get_code_bits_as_string64(reg, numRegBits()).c_str());
+      printf("clzBits : %s\n", get_code_bits_as_string64(clzBits, 32).c_str());
+      printf("q       : %d\n", q);
+    }
+# endif // DEBUG
+#endif // RICEDECODEBLOCKS_METAL_CLZ
+    
+    return q;
+  }
+  
+  // Given the successful result q of a CLZ(reg) operation, return the
+  // symbol prefix portion and update the bits and bit count registers.
+  
+  inline
+  ushort parseSymbolFromQ(const uint8_t k, const ushort q, const ushort numBitsRead) {
+#if defined(DEBUG)
+    const bool debug = false;
+#endif // DEBUG
+    
+#if defined(DEBUG)
+    if (numBitsRead == (q+1)) {
+      assert(q < 16);
+    }
+#endif // DEBUG
+    
+#if defined(DEBUG)
+    // 16 bits : (reg == 0)
+    // 32 bits : ((reg >> 16) == 0)
+    assert((reg >> (numRegBits() - 16)) != 0);
+#endif // DEBUG
+    ushort symbol = q << k;
+    
+#if defined(DEBUG)
+    if (debug) {
+      printf("q (num leading zeros): %d\n", q);
+    }
+    if (debug) {
+      printf("symbol      : %s\n", get_code_bits_as_string64(symbol, 8).c_str());
+    }
+# endif // DEBUG
+    
+    // Shift left to remove the indicated number of bits from register
+    reg <<= numBitsRead;
+    
+#if defined(DEBUG)
+    if (debug) {
+      printf("lshift   %2d : %s\n", numBitsRead, get_code_bits_as_string64(reg, numRegBits()).c_str());
+    }
+# endif // DEBUG
+    
+# if defined(DEBUG)
+    assert(regN >= numBitsRead);
+# endif // DEBUG
+    regN -= numBitsRead;
+    
+#if defined(RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL)
+    totalNumBitsRead += numBitsRead;
+#endif // RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL
+    
+    return symbol;
+  }
+  
+  // Parse prefix byte value, always consumes at least 1 bit
+  // and returns the byte without the REM portion.
+  
+  uint8_t decodePrefixByte(const uint8_t k,
+                           const bool reloadLT,
+                           const uint8_t lt,
+                           const bool reloadAlways) {
+#if defined(DEBUG)
+    const bool debug = false;
+#endif // DEBUG
+    
+#if defined(DEBUG)
+    if (debug) {
+      printf("decodePrefixByte bits: %s and regN %d : k = %d\n", get_code_bits_as_string64(reg, numRegBits()).c_str(), regN, k);
+    }
+#endif // DEBUG
+    
+#if defined(DEBUG)
+    if (reloadLT) {
+      assert(reloadAlways == false);
+    }
+    if (reloadAlways) {
+      assert(reloadLT == false);
+    }
+#endif // DEBUG
+    
+    // Make refill() call unconditional, this provides a significant
+    // speedup in the decode pathway, at least 1/2 a ms improvement.
+    
+    //if (rdb.regN < 16)
+    if (reloadAlways)
+    {
+//#if defined(DEBUG)
+//      assert(regN < numRegBits());
+//#endif // DEBUG
+      
+      cachedBits.refill(reg, regN, true);
+      
+#if defined(DEBUG)
+      assert(regN == numRegBits());
+#endif // DEBUG
+    }
+
+    // Conditional based on passed in value
+    
+    if (reloadLT && (regN < lt))
+    {
+#if defined(DEBUG)
+      assert(regN < numRegBits());
+#endif // DEBUG
+      
+      cachedBits.refill(reg, regN);
+      
+#if defined(DEBUG)
+      assert(regN == numRegBits());
+#endif // DEBUG
+    }
+    
+    // Unconditionally execute a clz operation to determine
+    // if a unary prefix value can be parsed from the stream.
+    
+    ushort symbol, q, numBitsRead;
+    
+    // If clz is in the range (0, 15) then a prefix value was parsed successfully.
+    
+    q = clzImpl();
+    
+    if (q < 16) {
+      // A successful clz is the most likely case by far, so this logic need
+      // not require that a full 16 bit be available when at least one of the
+      // next 16 bits is on.
+      numBitsRead = q + 1;
+    } else {
+      // clz was not successful, there are not enough bits or
+      // there could be 16 zeros in a row, either way refill
+      // and then check for the escape special case followed
+      // by cleanup path where clz would be executed again.
+      
+      // Previously this refill was conditional on (regN < numRegBits())
+      // it is now unconditional since the refill() is now a nop
+      // when register is already full.
+      
+      {
+        cachedBits.refill(reg, regN, true);
+        
+#if defined(DEBUG)
+        assert(regN == numRegBits());
+#endif // DEBUG
+      }
+      
+      if ((reg >> (numRegBits() - 16)) == 0) {
+        // Escape special case
+#if defined(DEBUG)
+        assert(regN >= 16);
+#endif // DEBUG
+        
+        if (numRegBits() == 16) {
+          // 16 bits
+          regN = 0;
+          //reg = 0;
+        } else {
+          // 32 bits
+          regN -= 16;
+          reg <<= 8;
+          reg <<= 8;
+        }
+        
+#if defined(RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL)
+        totalNumBitsRead += 16;
+#endif // RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL
+        
+#if defined(DEBUG)
+        if (debug) {
+          printf("bits (del16): %s\n", get_code_bits_as_string64(reg, numRegBits()).c_str());
+        }
+#endif // DEBUG
+        
+        if (numRegBits() == 16) {
+          cachedBits.refill(reg, regN, false);
+          
+#if defined(DEBUG)
+          assert(regN == numRegBits());
+#endif // DEBUG
+        }
+
+        // The next (8 - k) bits contain OVER bits
+        
+        const ushort numNotK = 8 - k;
+        
+# if defined(DEBUG)
+        assert(regN >= numNotK);
+        assert((numRegBits() - numNotK) < numRegBits());
+# endif // DEBUG
+        
+        // read the OVER bits from prefix stream. Note that
+        // this parse logic makes use of common code in
+        // parseSymbolFromQ() so that compiler is able to
+        // optimize a single path with conditional parts.
+        
+        //symbol = (reg >> (numRegBits() - numNotK)) << k;
+        q = (reg >> (numRegBits() - numNotK));
+        numBitsRead = numNotK;
+        
+        // FIXME: could unconditional refill after the escape special case
+        // lead to better 4x in a row processing codegen?
+      } else {
+        // prefix parse 2nd check, a reload means
+        // that clz op must be executed again.
+        // The result must be LT 16.
+        
+# if defined(DEBUG)
+        if (numRegBits() == 16) {
+          // 16 bits
+          assert(reg != 0);
+        } else {
+          // 32 bits
+          assert((reg >> 16) != 0);
+        }
+        
+        assert(regN >= 16);
+# endif // DEBUG
+        
+        q = clzImpl();
+        numBitsRead = q + 1;
+        // Fall through to parseSymbolFromQ()
+      }
+    }
+    
+    // Common logic to return symbol and update reg and bit count
+    
+    symbol = parseSymbolFromQ(k, q, numBitsRead);
+    
+#if defined(DEBUG)
+    if (debug) {
+      printf("append decoded prefix symbol = %d\n", symbol);
+    }
+#endif // DEBUG
+    
+    return symbol;
+  }
+  
+  // Return the REM portion k bits wide
+  
+  uint8_t decodeSuffixByte(const uint8_t k,
+                           const bool reloadLT,
+                           const uint8_t lt,
+                           const bool reloadAlways) {
+#if defined(DEBUG)
+    const bool debug = false;
+#endif // DEBUG
+    
+#if defined(DEBUG)
+    if (debug) {
+      printf("decodeSuffixByte bits: %s and rdb.regN %d\n", get_code_bits_as_string64(reg, numRegBits()).c_str(), regN);
+    }
+#endif // DEBUG
+    
+    ushort symbol;
+    
+    // Assume that since reg is 32 bits and this logic can only
+    // be accessed after an unconditional refill, so remove this
+    // refill path since the most bits that could have been removed
+    // was 16+1 for the escape case.
+    
+    // Reload only when the register has too few bits for next k, note that in
+    // the special case of k = 0, no reload is executed since regN is never LT zero.
+
+#if defined(DEBUG)
+    if (reloadLT) {
+      assert(reloadAlways == false);
+    }
+    if (reloadAlways) {
+      assert(reloadLT == false);
+    }
+#endif // DEBUG
+    
+    if (reloadAlways) {
+//#if defined(DEBUG)
+//      assert(regN < numRegBits());
+//#endif // DEBUG
+      
+      cachedBits.refill(reg, regN, true);
+      
+#if defined(DEBUG)
+      assert(regN == numRegBits());
+#endif // DEBUG
+    }
+    
+    if (reloadLT && (regN < lt)) {
+#if defined(DEBUG)
+      assert(regN < numRegBits());
+#endif // DEBUG
+      
+      cachedBits.refill(reg, regN);
+      
+#if defined(DEBUG)
+      assert(regN == numRegBits());
+#endif // DEBUG
+    }
+
+    {
+      // The next k bits is REM
+      
+# if defined(DEBUG)
+      assert(regN >= k);
+# endif // DEBUG
+      
+#if defined(DEBUG)
+      if (debug) {
+        printf("reg      : %s\n", get_code_bits_as_string64(reg, numRegBits()).c_str());
+        printf("k        : %d\n", k);
+      }
+#endif // DEBUG
+      
+      // Read k REM bits from suffix stream and right align.
+      // Note the special case here of k = 0 which results
+      // in a right shift by 16 or 32 bits which can be undefined.
+      
+      //symbol = (reg >> (numRegBits() - k));
+      
+      symbol = (reg >> (numRegBits() - 8));
+      symbol <<= k;
+      symbol >>= 8;
+      
+#if defined(DEBUG)
+      if (debug) {
+        printf("symbol      : %s\n", get_code_bits_as_string64(symbol, 8).c_str());
+      }
+#endif // DEBUG
+      
+      reg <<= k;
+      
+#if defined(DEBUG)
+      if (debug) {
+        printf("bits (notK) : %s\n", get_code_bits_as_string64(reg, numRegBits()).c_str());
+      }
+#endif // DEBUG
+      
+      regN -= k;
+      
+#if defined(RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL)
+      totalNumBitsRead += k;
+#endif // RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL
+    }
+    
+#if defined(DEBUG)
+    if (debug) {
+      printf("append decoded suffix symbol = %d\n", symbol);
+    }
+#endif // DEBUG
+    
+    return symbol;
   }
 };
 
