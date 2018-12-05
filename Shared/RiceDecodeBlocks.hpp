@@ -239,15 +239,12 @@ public:
 #if defined(RICEDECODEBLOCKS_METAL_CLZ)
     // clz on 16 bit register in Metal. Metal shading language
     // spec indicates that clz(0) returns 16 in this situation.
+    // A previous attempt to optimize the clz via
+    // clz(ushort(reg >> 16))
+    // with a 32 bit register was actually slower and so
+    // clz is executed directly on the 16 or 32 bit register.
     
-    if (numRegBits() == 16) {
-      // 16 bit register
-      q = clz(reg);
-    } else {
-      // 32 bit register
-      ushort reg16 = reg >> 16;
-      q = clz(reg16);
-    }
+    q = clz(reg);
 #else // RICEDECODEBLOCKS_METAL_CLZ
     // clz with 32 bit gcc builtin instruction
     
@@ -361,13 +358,8 @@ public:
     // Make refill() call unconditional, this provides a significant
     // speedup in the decode pathway, at least 1/2 a ms improvement.
     
-    //if (rdb.regN < 16)
     if (reloadAlways)
     {
-//#if defined(DEBUG)
-//      assert(regN < numRegBits());
-//#endif // DEBUG
-      
       cachedBits.refill(reg, regN, true);
       
 #if defined(DEBUG)
