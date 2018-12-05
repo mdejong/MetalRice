@@ -840,36 +840,12 @@ void kernel_render_rice_typed(
           
           continue;
         } else if (rType == RenderRiceTypedDecode) {
-          //          prefixByte0 = rice_rdb_decode_symbol(rdb, k);
-          //          prefixByte1 = rice_rdb_decode_symbol(rdb, k);
-          //          prefixByte2 = rice_rdb_decode_symbol(rdb, k);
-          //          prefixByte3 = rice_rdb_decode_symbol(rdb, k);
-          
-//          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
-//          prefixByte0 |= rdb.decodeSuffixByte(k, true, k, false);
-//
-//          prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
-//          prefixByte1 |= rdb.decodeSuffixByte(k, true, k, false);
-//
-//          prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
-//          prefixByte2 |= rdb.decodeSuffixByte(k, true, k, false);
-//
-//          prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
-//          prefixByte3 |= rdb.decodeSuffixByte(k, true, k, false);
-          
-          
           prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
           prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte1 |= rdb.decodeSuffixByte(k, true, k, false);
-          
           prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte2 |= rdb.decodeSuffixByte(k, true, k, false);
-          
           prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte3 |= rdb.decodeSuffixByte(k, true, k, false);
-
+          
+          rdb.decodeSuffixByte4x(k, prefixByte0, prefixByte1, prefixByte2, prefixByte3);
         } else {
           assert(0);
         }

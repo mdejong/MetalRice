@@ -45,7 +45,7 @@ vector<uint8_t> encode(const uint8_t * bytes,
                        int blockOptimalKTableLength,
                        int numBlocks)
 {
-  RiceSplit16Encoder<false, true, BitWriterByteStream> encoder;
+  RiceSplit16EncoderG4<false, true, BitWriterByteStream> encoder;
   
   vector<uint32_t> countTable;
   vector<uint32_t> nTable;
@@ -82,7 +82,7 @@ void decode(const uint8_t * bitBuff,
             int numBlocks,
             uint32_t *everyBitOffsetPtr = nullptr)
 {
-  RiceSplit16Decoder<false, true, BitReaderByteStream> decoder;
+  RiceSplit16DecoderG4<false, true, BitReaderByteStream> decoder;
   
   vector<uint32_t> countTable;
   vector<uint32_t> nTable;
@@ -156,59 +156,59 @@ void decode(const uint8_t * bitBuff,
 // Rice parallel decode method which requires a table of bit offsets for every
 // value in the stream.
 
-static inline
-void decodeParallelCheck(const uint8_t * bitBuff,
-                         const int bitBuffN,
-                         uint8_t *expectedBuffer,
-                         int numSymbolsToDecode,
-                         const int blockDim,
-                         const uint8_t * blockOptimalKTable,
-                         int blockOptimalKTableLength,
-                         int numBlocks,
-                         uint32_t *everyBitOffsetPtr)
-{
-  const bool debug = false;
-  
-  uint32_t *in32Ptr = (uint32_t *) bitBuff;
-  assert(everyBitOffsetPtr);
-  
-  const int numValuesInHalfBlock = (blockDim * blockDim) / 2;
-  
-  for ( int i = 0; i < numSymbolsToDecode; i++ ) {
-    uint32_t expectedBitOffset = everyBitOffsetPtr[i];
-    int expectedSymbol = expectedBuffer[i];
-
-    int blocki = i / numValuesInHalfBlock;
-    assert(blocki < (blockOptimalKTableLength-1));
-    int k = blockOptimalKTable[blocki];
-    
-    if (debug) {
-      printf("symbol[%5d] = expected %3d\n", i, expectedSymbol);
-      printf("absolute blocki %3d : k = %d\n", blocki, k);
-      printf("symbol starting bit offset %d\n", expectedBitOffset);
-    }
-    
-    RiceDecodeBlocksT rdb;
-    
-    rdb.cachedBits.initBits(in32Ptr, expectedBitOffset);
-    
-    rdb.totalNumBitsRead = expectedBitOffset;
-    
-    // Decode the next rice symbol at the absolute bit offset
-    
-    uint8_t symbol = rice_rdb_decode_symbol(rdb, k);
-    
-    assert(symbol == expectedSymbol);
-    
-    // Check number of bits just read (this symbol width)
-    if (i != (numSymbolsToDecode - 1)) {
-      int nextBitOffset = everyBitOffsetPtr[i+1];
-      assert(rdb.totalNumBitsRead == nextBitOffset);
-    }
-  }
-  
-  return;
-}
+//static inline
+//void decodeParallelCheck(const uint8_t * bitBuff,
+//                         const int bitBuffN,
+//                         uint8_t *expectedBuffer,
+//                         int numSymbolsToDecode,
+//                         const int blockDim,
+//                         const uint8_t * blockOptimalKTable,
+//                         int blockOptimalKTableLength,
+//                         int numBlocks,
+//                         uint32_t *everyBitOffsetPtr)
+//{
+//  const bool debug = false;
+//
+//  uint32_t *in32Ptr = (uint32_t *) bitBuff;
+//  assert(everyBitOffsetPtr);
+//
+//  const int numValuesInHalfBlock = (blockDim * blockDim) / 2;
+//
+//  for ( int i = 0; i < numSymbolsToDecode; i++ ) {
+//    uint32_t expectedBitOffset = everyBitOffsetPtr[i];
+//    int expectedSymbol = expectedBuffer[i];
+//
+//    int blocki = i / numValuesInHalfBlock;
+//    assert(blocki < (blockOptimalKTableLength-1));
+//    int k = blockOptimalKTable[blocki];
+//
+//    if (debug) {
+//      printf("symbol[%5d] = expected %3d\n", i, expectedSymbol);
+//      printf("absolute blocki %3d : k = %d\n", blocki, k);
+//      printf("symbol starting bit offset %d\n", expectedBitOffset);
+//    }
+//
+//    RiceDecodeBlocksT rdb;
+//
+//    rdb.cachedBits.initBits(in32Ptr, expectedBitOffset);
+//
+//    rdb.totalNumBitsRead = expectedBitOffset;
+//
+//    // Decode the next rice symbol at the absolute bit offset
+//
+//    uint8_t symbol = rice_rdb_decode_symbol(rdb, k);
+//
+//    assert(symbol == expectedSymbol);
+//
+//    // Check number of bits just read (this symbol width)
+//    if (i != (numSymbolsToDecode - 1)) {
+//      int nextBitOffset = everyBitOffsetPtr[i+1];
+//      assert(rdb.totalNumBitsRead == nextBitOffset);
+//    }
+//  }
+//
+//  return;
+//}
 
 // Given symbols to be encoded, determine bit offsets
 // and return as a vector of offsets. The everyN argument
@@ -234,7 +234,9 @@ vector<uint32_t> generateBitOffsets(const uint8_t * symbols,
   
   assert(numSymbolsInAllBlocks == numSymbols);
   
-  RiceSplit16Encoder<false, true, BitWriterByteStream> encoder;
+  // FIXME: bit offsets would only be vali when grouped into blocks of 4
+  
+  RiceSplit16EncoderG4<false, true, BitWriterByteStream> encoder;
   
   for ( int i = 0; i < numSymbols; i++ ) {
     if (everyN == 1) {
@@ -1134,7 +1136,7 @@ vector<uint32_t> generateBlockiValues(int width, int height)
 // logic works properly WRT half block values.
 
 - (void)testS32_1x1_DiffK02 {
-  const int blockDim = 2;
+  const int blockDim = 4;
   const int blockiDim = 4;
   
   const int width = 4 * blockDim;
@@ -1142,7 +1144,7 @@ vector<uint32_t> generateBlockiValues(int width, int height)
   
   const int blockN = (width * height) / (blockDim * blockDim);
   
-  // 2x2 block, 64 of them
+  // 4x4 block, 64 of them
   
   vector<uint8_t> inputPixelsVec(width*height);
   vector<uint8_t> s32OrderPixelsVec(width*height);
@@ -1314,13 +1316,13 @@ vector<uint32_t> generateBlockiValues(int width, int height)
       vector<uint8_t> outBufferVec(width*height);
       uint8_t *outBuffer = outBufferVec.data();
       
-      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
-                                                               numBlockSymbols,
-                                                               blockDim,
-                                                               blockOptimalKTable,
-                                                               blockOptimalKTableLen,
-                                                               blockN,
-                                                               1);
+//      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
+//                                                               numBlockSymbols,
+//                                                               blockDim,
+//                                                               blockOptimalKTable,
+//                                                               blockOptimalKTableLen,
+//                                                               blockN,
+//                                                               1);
       
       decode(riceEncodedVec.data(),
              (int)riceEncodedVec.size(),
@@ -1330,22 +1332,22 @@ vector<uint32_t> generateBlockiValues(int width, int height)
              blockOptimalKTable,
              blockOptimalKTableLen,
              blockN,
-             bitOffsetsEveryVal.data());
+             nullptr);
       
       int cmp = memcmp(blockSymbols, outBuffer, width*height);
       assert(cmp == 0);
       
       // Decode with non-stream rice method and validate against known good decoded values stream
       
-      decodeParallelCheck(riceEncodedVec.data(),
-                          (int)riceEncodedVec.size(),
-                          outBuffer,
-                          width*height,
-                          blockDim,
-                          blockOptimalKTable,
-                          blockOptimalKTableLen,
-                          blockN,
-                          bitOffsetsEveryVal.data());
+//      decodeParallelCheck(riceEncodedVec.data(),
+//                          (int)riceEncodedVec.size(),
+//                          outBuffer,
+//                          width*height,
+//                          blockDim,
+//                          blockOptimalKTable,
+//                          blockOptimalKTableLen,
+//                          blockN,
+//                          bitOffsetsEveryVal.data());
     }
 #endif // DEBUG
   }
@@ -1354,7 +1356,7 @@ vector<uint32_t> generateBlockiValues(int width, int height)
 }
 
 - (void)testS32_2x1_DiffK02 {
-  const int blockDim = 2;
+  const int blockDim = 4;
   const int blockiDim = 4;
   
   const int width = 8 * blockDim;
@@ -1362,7 +1364,7 @@ vector<uint32_t> generateBlockiValues(int width, int height)
   
   const int blockN = (width * height) / (blockDim * blockDim);
   
-  // 2x2 block, 64 of them
+  // 4x4 block, 64 of them
   
   vector<uint8_t> inputPixelsVec(width*height);
   vector<uint8_t> s32OrderPixelsVec(width*height);
@@ -1596,13 +1598,13 @@ vector<uint32_t> generateBlockiValues(int width, int height)
       vector<uint8_t> outBufferVec(width*height);
       uint8_t *outBuffer = outBufferVec.data();
       
-      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
-                                                               numBlockSymbols,
-                                                               blockDim,
-                                                               blockOptimalKTable,
-                                                               blockOptimalKTableLen,
-                                                               blockN,
-                                                               1);
+//      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
+//                                                               numBlockSymbols,
+//                                                               blockDim,
+//                                                               blockOptimalKTable,
+//                                                               blockOptimalKTableLen,
+//                                                               blockN,
+//                                                               1);
       
       decode(riceEncodedVec.data(),
              (int)riceEncodedVec.size(),
@@ -1612,22 +1614,22 @@ vector<uint32_t> generateBlockiValues(int width, int height)
              blockOptimalKTable,
              blockOptimalKTableLen,
              blockN,
-             bitOffsetsEveryVal.data());
+             nullptr);
       
       int cmp = memcmp(blockSymbols, outBuffer, width*height);
       assert(cmp == 0);
       
       // Decode with non-stream rice method and validate against known good decoded values stream
       
-      decodeParallelCheck(riceEncodedVec.data(),
-                          (int)riceEncodedVec.size(),
-                          outBuffer,
-                          width*height,
-                          blockDim,
-                          blockOptimalKTable,
-                          blockOptimalKTableLen,
-                          blockN,
-                          bitOffsetsEveryVal.data());
+//      decodeParallelCheck(riceEncodedVec.data(),
+//                          (int)riceEncodedVec.size(),
+//                          outBuffer,
+//                          width*height,
+//                          blockDim,
+//                          blockOptimalKTable,
+//                          blockOptimalKTableLen,
+//                          blockN,
+//                          bitOffsetsEveryVal.data());
     }
 #endif // DEBUG
   }
@@ -1636,7 +1638,7 @@ vector<uint32_t> generateBlockiValues(int width, int height)
 }
 
 - (void)testS32_2x2_DiffK02 {
-  const int blockDim = 2;
+  const int blockDim = 4;
   const int blockiDim = 4;
   
   const int width = 8 * blockDim;
@@ -1767,13 +1769,13 @@ vector<uint32_t> generateBlockiValues(int width, int height)
       vector<uint8_t> outBufferVec(width*height);
       uint8_t *outBuffer = outBufferVec.data();
       
-      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
-                                                               numBlockSymbols,
-                                                               blockDim,
-                                                               blockOptimalKTable,
-                                                               blockOptimalKTableLen,
-                                                               blockN,
-                                                               1);
+//      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
+//                                                               numBlockSymbols,
+//                                                               blockDim,
+//                                                               blockOptimalKTable,
+//                                                               blockOptimalKTableLen,
+//                                                               blockN,
+//                                                               1);
       
       decode(riceEncodedVec.data(),
              (int)riceEncodedVec.size(),
@@ -1783,22 +1785,22 @@ vector<uint32_t> generateBlockiValues(int width, int height)
              blockOptimalKTable,
              blockOptimalKTableLen,
              blockN,
-             bitOffsetsEveryVal.data());
+             nullptr);
       
       int cmp = memcmp(blockSymbols, outBuffer, width*height);
       assert(cmp == 0);
       
       // Decode with non-stream rice method and validate against known good decoded values stream
       
-      decodeParallelCheck(riceEncodedVec.data(),
-                          (int)riceEncodedVec.size(),
-                          outBuffer,
-                          width*height,
-                          blockDim,
-                          blockOptimalKTable,
-                          blockOptimalKTableLen,
-                          blockN,
-                          bitOffsetsEveryVal.data());
+//      decodeParallelCheck(riceEncodedVec.data(),
+//                          (int)riceEncodedVec.size(),
+//                          outBuffer,
+//                          width*height,
+//                          blockDim,
+//                          blockOptimalKTable,
+//                          blockOptimalKTableLen,
+//                          blockN,
+//                          bitOffsetsEveryVal.data());
     }
 #endif // DEBUG
   }
@@ -1933,13 +1935,13 @@ vector<uint32_t> generateBlockiValues(int width, int height)
       vector<uint8_t> outBufferVec(width*height);
       uint8_t *outBuffer = outBufferVec.data();
       
-      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
-                                                               numBlockSymbols,
-                                                               blockDim,
-                                                               blockOptimalKTable,
-                                                               blockOptimalKTableLen,
-                                                               blockN,
-                                                               1);
+//      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
+//                                                               numBlockSymbols,
+//                                                               blockDim,
+//                                                               blockOptimalKTable,
+//                                                               blockOptimalKTableLen,
+//                                                               blockN,
+//                                                               1);
       
       decode(riceEncodedVec.data(),
              (int)riceEncodedVec.size(),
@@ -1949,22 +1951,22 @@ vector<uint32_t> generateBlockiValues(int width, int height)
              blockOptimalKTable,
              blockOptimalKTableLen,
              blockN,
-             bitOffsetsEveryVal.data());
+             nullptr);
       
       int cmp = memcmp(blockSymbols, outBuffer, width*height);
       assert(cmp == 0);
       
       // Decode with non-stream rice method and validate against known good decoded values stream
       
-      decodeParallelCheck(riceEncodedVec.data(),
-                          (int)riceEncodedVec.size(),
-                          outBuffer,
-                          width*height,
-                          blockDim,
-                          blockOptimalKTable,
-                          blockOptimalKTableLen,
-                          blockN,
-                          bitOffsetsEveryVal.data());
+//      decodeParallelCheck(riceEncodedVec.data(),
+//                          (int)riceEncodedVec.size(),
+//                          outBuffer,
+//                          width*height,
+//                          blockDim,
+//                          blockOptimalKTable,
+//                          blockOptimalKTableLen,
+//                          blockN,
+//                          bitOffsetsEveryVal.data());
     }
 #endif // DEBUG
   }
@@ -3126,13 +3128,13 @@ vector<uint32_t> generateBlockiValues(int width, int height)
       vector<uint8_t> outBufferVec(width*height);
       uint8_t *outBuffer = outBufferVec.data();
       
-      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
-                                                               numBlockSymbols,
-                                                               blockDim,
-                                                               blockOptimalKTable,
-                                                               blockOptimalKTableLen,
-                                                               blockN,
-                                                               1);
+//      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
+//                                                               numBlockSymbols,
+//                                                               blockDim,
+//                                                               blockOptimalKTable,
+//                                                               blockOptimalKTableLen,
+//                                                               blockN,
+//                                                               1);
 
       decode(riceEncodedVec.data(),
              (int)riceEncodedVec.size(),
@@ -3142,22 +3144,22 @@ vector<uint32_t> generateBlockiValues(int width, int height)
              blockOptimalKTable,
              blockOptimalKTableLen,
              blockN,
-             bitOffsetsEveryVal.data());
+             nullptr);
       
       int cmp = memcmp(blockSymbols, outBuffer, width*height);
       assert(cmp == 0);
       
       // Decode with non-stream rice method and validate against known good decoded values stream
       
-      decodeParallelCheck(riceEncodedVec.data(),
-                          (int)riceEncodedVec.size(),
-                          outBuffer,
-                          width*height,
-                          blockDim,
-                          blockOptimalKTable,
-                          blockOptimalKTableLen,
-                          blockN,
-                          bitOffsetsEveryVal.data());
+//      decodeParallelCheck(riceEncodedVec.data(),
+//                          (int)riceEncodedVec.size(),
+//                          outBuffer,
+//                          width*height,
+//                          blockDim,
+//                          blockOptimalKTable,
+//                          blockOptimalKTableLen,
+//                          blockN,
+//                          bitOffsetsEveryVal.data());
     }
 #endif // DEBUG
     
@@ -3507,13 +3509,13 @@ vector<uint32_t> generateBlockiValues(int width, int height)
       vector<uint8_t> outBufferVec(width*height);
       uint8_t *outBuffer = outBufferVec.data();
       
-      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
-                                                               numBlockSymbols,
-                                                               blockDim,
-                                                               blockOptimalKTable,
-                                                               blockOptimalKTableLen,
-                                                               blockN,
-                                                               1);
+//      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
+//                                                               numBlockSymbols,
+//                                                               blockDim,
+//                                                               blockOptimalKTable,
+//                                                               blockOptimalKTableLen,
+//                                                               blockN,
+//                                                               1);
 
       decode(riceEncodedVec.data(),
              (int)riceEncodedVec.size(),
@@ -3523,22 +3525,22 @@ vector<uint32_t> generateBlockiValues(int width, int height)
              blockOptimalKTable,
              blockOptimalKTableLen,
              blockN,
-             bitOffsetsEveryVal.data());
+             nullptr);
       
       int cmp = memcmp(blockSymbols, outBuffer, width*height);
       assert(cmp == 0);
       
       // Decode with non-stream rice method and validate against known good decoded values stream
       
-      decodeParallelCheck(riceEncodedVec.data(),
-                          (int)riceEncodedVec.size(),
-                          outBuffer,
-                          width*height,
-                          blockDim,
-                          blockOptimalKTable,
-                          blockOptimalKTableLen,
-                          blockN,
-                          bitOffsetsEveryVal.data());
+//      decodeParallelCheck(riceEncodedVec.data(),
+//                          (int)riceEncodedVec.size(),
+//                          outBuffer,
+//                          width*height,
+//                          blockDim,
+//                          blockOptimalKTable,
+//                          blockOptimalKTableLen,
+//                          blockN,
+//                          bitOffsetsEveryVal.data());
     }
 #endif // DEBUG
     
@@ -3887,13 +3889,13 @@ vector<uint32_t> generateBlockiValues(int width, int height)
       vector<uint8_t> outBufferVec(width*height);
       uint8_t *outBuffer = outBufferVec.data();
       
-      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
-                                                               numBlockSymbols,
-                                                               blockDim,
-                                                               blockOptimalKTable,
-                                                               blockOptimalKTableLen,
-                                                               blockN,
-                                                               1);
+//      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
+//                                                               numBlockSymbols,
+//                                                               blockDim,
+//                                                               blockOptimalKTable,
+//                                                               blockOptimalKTableLen,
+//                                                               blockN,
+//                                                               1);
       
       decode(riceEncodedVec.data(),
              (int)riceEncodedVec.size(),
@@ -3903,22 +3905,22 @@ vector<uint32_t> generateBlockiValues(int width, int height)
              blockOptimalKTable,
              blockOptimalKTableLen,
              blockN,
-             bitOffsetsEveryVal.data());
+             nullptr);
       
       int cmp = memcmp(blockSymbols, outBuffer, width*height);
       assert(cmp == 0);
       
       // Decode with non-stream rice method and validate against known good decoded values stream
       
-      decodeParallelCheck(riceEncodedVec.data(),
-                          (int)riceEncodedVec.size(),
-                          outBuffer,
-                          width*height,
-                          blockDim,
-                          blockOptimalKTable,
-                          blockOptimalKTableLen,
-                          blockN,
-                          bitOffsetsEveryVal.data());
+//      decodeParallelCheck(riceEncodedVec.data(),
+//                          (int)riceEncodedVec.size(),
+//                          outBuffer,
+//                          width*height,
+//                          blockDim,
+//                          blockOptimalKTable,
+//                          blockOptimalKTableLen,
+//                          blockN,
+//                          bitOffsetsEveryVal.data());
     }
 #endif // DEBUG
     
@@ -4269,13 +4271,13 @@ vector<uint32_t> generateBlockiValues(int width, int height)
       vector<uint8_t> outBufferVec(width*height);
       uint8_t *outBuffer = outBufferVec.data();
       
-      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
-                                                               numBlockSymbols,
-                                                               blockDim,
-                                                               blockOptimalKTable,
-                                                               blockOptimalKTableLen,
-                                                               blockN,
-                                                               1);
+//      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
+//                                                               numBlockSymbols,
+//                                                               blockDim,
+//                                                               blockOptimalKTable,
+//                                                               blockOptimalKTableLen,
+//                                                               blockN,
+//                                                               1);
       
       decode(riceEncodedVec.data(),
              (int)riceEncodedVec.size(),
@@ -4285,22 +4287,22 @@ vector<uint32_t> generateBlockiValues(int width, int height)
              blockOptimalKTable,
              blockOptimalKTableLen,
              blockN,
-             bitOffsetsEveryVal.data());
+             nullptr);
       
       int cmp = memcmp(blockSymbols, outBuffer, width*height);
       assert(cmp == 0);
       
       // Decode with non-stream rice method and validate against known good decoded values stream
       
-      decodeParallelCheck(riceEncodedVec.data(),
-                          (int)riceEncodedVec.size(),
-                          outBuffer,
-                          width*height,
-                          blockDim,
-                          blockOptimalKTable,
-                          blockOptimalKTableLen,
-                          blockN,
-                          bitOffsetsEveryVal.data());
+//      decodeParallelCheck(riceEncodedVec.data(),
+//                          (int)riceEncodedVec.size(),
+//                          outBuffer,
+//                          width*height,
+//                          blockDim,
+//                          blockOptimalKTable,
+//                          blockOptimalKTableLen,
+//                          blockN,
+//                          bitOffsetsEveryVal.data());
     }
 #endif // DEBUG
     
@@ -4662,13 +4664,13 @@ vector<uint32_t> generateBlockiValues(int width, int height)
       vector<uint8_t> outBufferVec(width*height);
       uint8_t *outBuffer = outBufferVec.data();
       
-      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
-                                                               numBlockSymbols,
-                                                               blockDim,
-                                                               blockOptimalKTable,
-                                                               blockOptimalKTableLen,
-                                                               blockN,
-                                                               1);
+//      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
+//                                                               numBlockSymbols,
+//                                                               blockDim,
+//                                                               blockOptimalKTable,
+//                                                               blockOptimalKTableLen,
+//                                                               blockN,
+//                                                               1);
       
       decode(riceEncodedVec.data(),
              (int)riceEncodedVec.size(),
@@ -4678,22 +4680,22 @@ vector<uint32_t> generateBlockiValues(int width, int height)
              blockOptimalKTable,
              blockOptimalKTableLen,
              blockN,
-             bitOffsetsEveryVal.data());
+             nullptr);
       
       int cmp = memcmp(blockSymbols, outBuffer, width*height);
       assert(cmp == 0);
       
       // Decode with non-stream rice method and validate against known good decoded values stream
       
-      decodeParallelCheck(riceEncodedVec.data(),
-                          (int)riceEncodedVec.size(),
-                          outBuffer,
-                          width*height,
-                          blockDim,
-                          blockOptimalKTable,
-                          blockOptimalKTableLen,
-                          blockN,
-                          bitOffsetsEveryVal.data());
+//      decodeParallelCheck(riceEncodedVec.data(),
+//                          (int)riceEncodedVec.size(),
+//                          outBuffer,
+//                          width*height,
+//                          blockDim,
+//                          blockOptimalKTable,
+//                          blockOptimalKTableLen,
+//                          blockN,
+//                          bitOffsetsEveryVal.data());
     }
 #endif // DEBUG
     
@@ -5097,13 +5099,13 @@ vector<uint32_t> generateBlockiValues(int width, int height)
       vector<uint8_t> outBufferVec(width*height);
       uint8_t *outBuffer = outBufferVec.data();
       
-      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
-                                                               numBlockSymbols,
-                                                               blockDim,
-                                                               blockOptimalKTable,
-                                                               blockOptimalKTableLen,
-                                                               blockN,
-                                                               1);
+//      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
+//                                                               numBlockSymbols,
+//                                                               blockDim,
+//                                                               blockOptimalKTable,
+//                                                               blockOptimalKTableLen,
+//                                                               blockN,
+//                                                               1);
       
       decode(riceEncodedVec.data(),
              (int)riceEncodedVec.size(),
@@ -5113,22 +5115,22 @@ vector<uint32_t> generateBlockiValues(int width, int height)
              blockOptimalKTable,
              blockOptimalKTableLen,
              blockN,
-             bitOffsetsEveryVal.data());
+             nullptr);
       
       int cmp = memcmp(blockSymbols, outBuffer, width*height);
       assert(cmp == 0);
       
       // Decode with non-stream rice method and validate against known good decoded values stream
       
-      decodeParallelCheck(riceEncodedVec.data(),
-                          (int)riceEncodedVec.size(),
-                          outBuffer,
-                          width*height,
-                          blockDim,
-                          blockOptimalKTable,
-                          blockOptimalKTableLen,
-                          blockN,
-                          bitOffsetsEveryVal.data());
+//      decodeParallelCheck(riceEncodedVec.data(),
+//                          (int)riceEncodedVec.size(),
+//                          outBuffer,
+//                          width*height,
+//                          blockDim,
+//                          blockOptimalKTable,
+//                          blockOptimalKTableLen,
+//                          blockN,
+//                          bitOffsetsEveryVal.data());
     }
 #endif // DEBUG
     
@@ -5506,13 +5508,13 @@ vector<uint32_t> generateBlockiValues(int width, int height)
       vector<uint8_t> outBufferVec(width*height);
       uint8_t *outBuffer = outBufferVec.data();
       
-      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
-                                                               numBlockSymbols,
-                                                               blockDim,
-                                                               blockOptimalKTable,
-                                                               blockOptimalKTableLen,
-                                                               blockN,
-                                                               1);
+//      vector<uint32_t> bitOffsetsEveryVal = generateBitOffsets(blockSymbols,
+//                                                               numBlockSymbols,
+//                                                               blockDim,
+//                                                               blockOptimalKTable,
+//                                                               blockOptimalKTableLen,
+//                                                               blockN,
+//                                                               1);
       
       decode(riceEncodedVec.data(),
              (int)riceEncodedVec.size(),
@@ -5522,22 +5524,22 @@ vector<uint32_t> generateBlockiValues(int width, int height)
              blockOptimalKTable,
              blockOptimalKTableLen,
              blockN,
-             bitOffsetsEveryVal.data());
+             nullptr);
       
       int cmp = memcmp(blockSymbols, outBuffer, width*height);
       assert(cmp == 0);
       
       // Decode with non-stream rice method and validate against known good decoded values stream
       
-      decodeParallelCheck(riceEncodedVec.data(),
-                          (int)riceEncodedVec.size(),
-                          outBuffer,
-                          width*height,
-                          blockDim,
-                          blockOptimalKTable,
-                          blockOptimalKTableLen,
-                          blockN,
-                          bitOffsetsEveryVal.data());
+//      decodeParallelCheck(riceEncodedVec.data(),
+//                          (int)riceEncodedVec.size(),
+//                          outBuffer,
+//                          width*height,
+//                          blockDim,
+//                          blockOptimalKTable,
+//                          blockOptimalKTableLen,
+//                          blockN,
+//                          bitOffsetsEveryVal.data());
     }
 #endif // DEBUG
     

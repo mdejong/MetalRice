@@ -35,15 +35,15 @@
 // Read suffix from symbol input, note that this method is not optimal
 // for the k = 0 case since the whole block is not skipped.
 
-template <typename T>
-uint8_t rice_rdb_decode_symbol(
-                                      CACHEDBIT_THREAD_SPECIFIC T & rdb,
-                                      const uint8_t k)
-{
-  ushort prefixByte = rdb.decodePrefixByte(k, false, 0, true);
-  prefixByte |= rdb.decodeSuffixByte(k, false, 0, true);
-  return prefixByte;
-}
+//template <typename T>
+//uint8_t rice_rdb_decode_symbol(
+//                                      CACHEDBIT_THREAD_SPECIFIC T & rdb,
+//                                      const uint8_t k)
+//{
+//  ushort prefixByte = rdb.decodePrefixByte(k, false, 0, true);
+//  prefixByte |= rdb.decodeSuffixByte(k, false, 0, true);
+//  return prefixByte;
+//}
 
 // RiceDecodeBlocks
 
@@ -358,8 +358,13 @@ public:
     // Make refill() call unconditional, this provides a significant
     // speedup in the decode pathway, at least 1/2 a ms improvement.
     
+    //if (rdb.regN < 16)
     if (reloadAlways)
     {
+//#if defined(DEBUG)
+//      assert(regN < numRegBits());
+//#endif // DEBUG
+      
       cachedBits.refill(reg, regN, true);
       
 #if defined(DEBUG)
@@ -617,6 +622,144 @@ public:
     
     return symbol;
   }
+  
+  // Optimized decodee of 4 REM byte values where register is known to be
+  // large enough to hold 4 values of bit width k.
+  
+  void decodeSuffixByte4x(const uint8_t k,
+                          CACHEDBIT_THREAD_SPECIFIC ushort & rem1,
+                          CACHEDBIT_THREAD_SPECIFIC ushort & rem2,
+                          CACHEDBIT_THREAD_SPECIFIC ushort & rem3,
+                          CACHEDBIT_THREAD_SPECIFIC ushort & rem4)
+  {
+#if defined(DEBUG)
+    const bool debug = false;
+#endif // DEBUG
+    
+#if defined(DEBUG)
+    if (debug) {
+      printf("decodeSuffixByte4x bits: %s and rdb.regN %d\n", get_code_bits_as_string64(reg, numRegBits()).c_str(), regN);
+    }
+#endif // DEBUG
+    
+    const ushort k4 = k * 4;
+    
+    const bool reloadLT = true;
+    //const ushort lt = k4;
+    const bool reloadAlways = false;
+    
+    // Reload only when the register has too few bits for next k, note that in
+    // the special case of k = 0, no reload is executed since regN is never LT zero.
+    
+#if defined(DEBUG)
+    if (reloadLT) {
+      assert(reloadAlways == false);
+    }
+    if (reloadAlways) {
+      assert(reloadLT == false);
+    }
+#endif // DEBUG
+    
+    if (reloadAlways && (regN < numRegBits())) {
+#if defined(DEBUG)
+      assert(regN < numRegBits());
+#endif // DEBUG
+      
+      cachedBits.refill(reg, regN);
+      
+#if defined(DEBUG)
+      assert(regN == numRegBits());
+#endif // DEBUG
+    }
+    
+    if (reloadLT && (regN < k4)) {
+#if defined(DEBUG)
+      assert(regN < numRegBits());
+#endif // DEBUG
+      
+      cachedBits.refill(reg, regN);
+      
+#if defined(DEBUG)
+      assert(regN == numRegBits());
+#endif // DEBUG
+    }
+    
+    // Process 4 REM elements sitting in the register, since each element is a fixed bit
+    // width this means that each value can be extracted in parallel.
+    
+# if defined(DEBUG)
+    assert(regN >= k4);
+# endif // DEBUG
+    
+#if defined(DEBUG)
+    if (debug) {
+      printf("reg      : %s\n", get_code_bits_as_string64(reg, numRegBits()).c_str());
+      printf("regN     : %d\n", regN);
+      printf("k        : %d\n", k);
+    }
+#endif // DEBUG
+    
+    const bool cond = (k == 0);
+    R regCopy = (cond ? 0 : reg);
+    ushort shiftNBits = (cond ? 0 : (32 - k));
+    
+    // Can now exeute : (regCopy >> shiftNBits) unconditionally
+    // to adjust k top bits to lowest 8 bits in register
+
+    {
+      ushort tmp = (regCopy >> shiftNBits);
+      regCopy <<= k;
+      rem1 |= tmp;
+    }
+
+    {
+      ushort tmp = (regCopy >> shiftNBits);
+      regCopy <<= k;
+      rem2 |= tmp;
+    }
+
+    {
+      ushort tmp = (regCopy >> shiftNBits);
+      regCopy <<= k;
+      rem3 |= tmp;
+    }
+
+    {
+      ushort tmp = (regCopy >> shiftNBits);
+      regCopy <<= k;
+      rem4 |= tmp;
+    }
+    
+#if defined(DEBUG)
+    if (debug) {
+      printf("rem1      : %s : %d\n", get_code_bits_as_string64(rem1, 8).c_str(), rem1);
+      printf("rem2      : %s : %d\n", get_code_bits_as_string64(rem2, 8).c_str(), rem2);
+      printf("rem3      : %s : %d\n", get_code_bits_as_string64(rem3, 8).c_str(), rem3);
+      printf("rem4      : %s : %d\n", get_code_bits_as_string64(rem4, 8).c_str(), rem4);
+    }
+#endif // DEBUG
+    
+    reg <<= k4;
+    
+#if defined(DEBUG)
+    if (debug) {
+      printf("bits (remk4) : %s\n", get_code_bits_as_string64(reg, numRegBits()).c_str());
+    }
+#endif // DEBUG
+    
+# if defined(DEBUG)
+    assert(regN >= k4);
+# endif // DEBUG
+    
+    regN -= k4;
+    
+#if defined(RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL)
+    totalNumBitsRead += k4;
+#endif // RICEDECODEBLOCKS_NUM_BITS_READ_TOTAL
+    
+    return;
+  }
+  
 };
 
 #endif // rice_decode_blocks_hpp

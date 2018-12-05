@@ -193,83 +193,13 @@ kernel void kernel_render_rice2(
           prefixByte3 = bigBlockY;
         }
         
-        if (false) {
-          // Order BGRA
-//          prefixByte0 = rice_rdb_decode_symbol(rdb, k);
-//          prefixByte1 = rice_rdb_decode_symbol(rdb, k);
-//          prefixByte2 = rice_rdb_decode_symbol(rdb, k);
-//          prefixByte3 = rice_rdb_decode_symbol(rdb, k);
-        }
-
-        if (false) {
-          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
-          prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte1 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
-          prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte2 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
-          prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte3 |= rdb.decodeSuffixByte(k, false, 0, false);
-        }
-
-        if (false) {
-          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte0 |= rdb.decodeSuffixByte(k, true, k, false);
-          
-          prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte1 |= rdb.decodeSuffixByte(k, true, k, false);
-          
-          prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte2 |= rdb.decodeSuffixByte(k, true, k, false);
-          
-          prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte3 |= rdb.decodeSuffixByte(k, true, k, false);
-        }
-        
-        if (false) {
-          // Not working since k bits might not be loaded
-          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
-          prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte1 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
-          prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte2 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
-          prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte3 |= rdb.decodeSuffixByte(k, false, 0, false);
-        }
-        
-        if (false) {
-          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
-          prefixByte1  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte1 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
-          prefixByte2  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte2 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
-          prefixByte3  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte3 |= rdb.decodeSuffixByte(k, false, 0, false);
-        }
-        
         if (true) {
           prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
           prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte1 |= rdb.decodeSuffixByte(k, true, k, false);
-          
           prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte2 |= rdb.decodeSuffixByte(k, true, k, false);
-          
           prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte3 |= rdb.decodeSuffixByte(k, true, k, false);
+          
+          rdb.decodeSuffixByte4x(k, prefixByte0, prefixByte1, prefixByte2, prefixByte3);
         }
         
         ushort2 blockCoords = ushort2(col, row);
@@ -427,71 +357,15 @@ kernel void kernel_render_rice2_undelta(
           prefixByte3 = bigBlockY;
         }
         
-        if (false) {
-          // Order BGRA
-//          prefixByte0 = rice_rdb_decode_symbol(rdb, k);
-//          prefixByte1 = rice_rdb_decode_symbol(rdb, k);
-//          prefixByte2 = rice_rdb_decode_symbol(rdb, k);
-//          prefixByte3 = rice_rdb_decode_symbol(rdb, k);
-          
+        if (true) {
           prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
           prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte1 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
           prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte2 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
           prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte3 |= rdb.decodeSuffixByte(k, false, 0, false);
-        }
-        
-        if (false) {
-          // 4.9
-          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte0 |= rdb.decodeSuffixByte(k, true, k, false);
           
-          prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte1 |= rdb.decodeSuffixByte(k, true, k, false);
-          
-          prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte2 |= rdb.decodeSuffixByte(k, true, k, false);
-          
-          prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte3 |= rdb.decodeSuffixByte(k, true, k, false);
+          rdb.decodeSuffixByte4x(k, prefixByte0, prefixByte1, prefixByte2, prefixByte3);
         }
 
-        if (true) {
-          // 4.83 wo conditional suffix check
-          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
-          prefixByte1  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte1 |= rdb.decodeSuffixByte(k, true, k, false);
-          
-          prefixByte2  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte2 |= rdb.decodeSuffixByte(k, true, k, false);
-          
-          prefixByte3  = rdb.decodePrefixByte(k, false, 0, false);
-          prefixByte3 |= rdb.decodeSuffixByte(k, true, k, false);
-        }
-        
-        if (false) {
-          // 6.9
-          prefixByte0  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte0 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
-          prefixByte1  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte1 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
-          prefixByte2  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte2 |= rdb.decodeSuffixByte(k, false, 0, false);
-          
-          prefixByte3  = rdb.decodePrefixByte(k, false, 0, true);
-          prefixByte3 |= rdb.decodeSuffixByte(k, false, 0, false);
-        }
-        
         ushort2 blockCoords = ushort2(col, row);
         ushort2 outCoords = blockRootCoords + blockCoords;
         
@@ -851,14 +725,6 @@ kernel void kernel_render_rice2_blocki(
           prefixByte3 = bigBlockY;
         }
         
-        if (false) {
-          // Order BGRA
-//          prefixByte0 = rice_rdb_decode_symbol(rdb, k);
-//          prefixByte1 = rice_rdb_decode_symbol(rdb, k);
-//          prefixByte2 = rice_rdb_decode_symbol(rdb, k);
-//          prefixByte3 = rice_rdb_decode_symbol(rdb, k);
-        }
-        
         ushort2 blockCoords = ushort2(col, row);
         ushort2 outCoords = blockRootCoords + blockCoords;
         
@@ -1019,15 +885,7 @@ kernel void kernel_render_rice2_block_bit_offset(
           prefixByte2 = bigBlockX;
           prefixByte3 = bigBlockY;
         }
-        
-        if (false) {
-          // Order BGRA
-//          prefixByte0 = rice_rdb_decode_symbol(rdb, k);
-//          prefixByte1 = rice_rdb_decode_symbol(rdb, k);
-//          prefixByte2 = rice_rdb_decode_symbol(rdb, k);
-//          prefixByte3 = rice_rdb_decode_symbol(rdb, k);
-        }
-        
+                
         ushort2 blockCoords = ushort2(col, row);
         ushort2 outCoords = blockRootCoords + blockCoords;
         

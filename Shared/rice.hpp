@@ -1062,6 +1062,985 @@ public:
     
 };
 
+// Optimized split16 decoder, this decoder makes use of a 16 bit input buffer
+// and when the special case of 16 input zero bits is found, it simply means
+// that the literal value is stored as 24 bits in the remainder. This special
+// case would only be activated for very large values so performance for
+// data that is mostly very small but has a few large deltas should be better
+// and this logic has a maximum prefix clz size of 16.
+// This decoder assumes that that unary pattern is N false values terminated
+// by a true value.
+
+template <const bool U1, const bool U2, class BRBS>
+class RiceSplit16Decoder
+{
+public:
+  // Input bits. A unary prefix has a maximum length of 16
+  // and in that case the suffix contains the 8 literal bits.
+  // All symbol decode operations can be executed as long
+  // as 24 bits are loaded.
+  
+  uint32_t bits;
+  
+  BitReader<true, BRBS, 24> bitsReader;
+  
+  uint8_t *outputBytePtr;
+  int outputByteOffset;
+  int outputByteLength;
+  
+  RiceSplit16Decoder()
+  :bits(0),
+  outputBytePtr(nullptr),
+  outputByteOffset(-1),
+  outputByteLength(-1)
+  {
+    bitsReader.setBitsPtr(&bits);
+  }
+  
+  inline
+  void refillBits() {
+    bitsReader.refillBits();
+  }
+  
+  // Store refs to input and output byte bufers
+  
+  void setupInputOutput(const uint8_t * bitBuff, const int bitBuffN,
+                        uint8_t * symbolBuff, const int symbolBuffN)
+  {
+    bitsReader.byteReader.setupInput(bitBuff, bitBuffN);
+    
+    this->outputBytePtr = symbolBuff;
+    this->outputByteOffset = 0;
+    this->outputByteLength = symbolBuffN;
+    
+#if defined(DEBUG)
+    if (bitBuff != nullptr) {
+      uint8_t bVal = bitBuff[0];
+      bVal += bitBuff[bitBuffN-1];
+      
+      outputBytePtr[0] = bVal;
+      outputBytePtr[symbolBuffN-1] = bVal;
+    }
+#endif // DEBUG
+  }
+  
+  // Decode N symbols from the input stream and write decoded symbols
+  // to the output vector. Returns the number of symbols decoded.
+  
+  int decodeSymbols(const unsigned int k, const int nsymbols) {
+    const bool debug = false;
+    
+    if (debug) {
+      printf("k = %d\n", k);
+    }
+    
+    //const unsigned int m = (1 << k);
+    
+    for ( int symboli = 0; symboli < nsymbols; symboli++ ) {
+      unsigned int symbol;
+      
+      // Refill before reading a symbol
+      refillBits();
+      
+      unsigned int q;
+      
+      if ((bits >> 16) == 0) {
+        // Special case for 16 bits of zeros in high halfword
+        q = 0;
+        
+        // FIXME: skip 16 zeros and set symbol to 8 bit literal
+        
+# if defined(DEBUG)
+        assert(bitsReader.bitsInRegister >= 24);
+# endif // DEBUG
+        
+        bits <<= 16;
+        
+        if (debug) {
+          printf("bits (del16): %s\n", get_code_bits_as_string64(bits, 32).c_str());
+        }
+        
+# if defined(DEBUG)
+        assert(bitsReader.bitsInRegister >= 8);
+# endif // DEBUG
+        
+        symbol = bits >> 24;
+        
+        if (debug) {
+          printf("symbol      : %s\n", get_code_bits_as_string64(symbol, 32).c_str());
+        }
+        
+        bits <<= 8;
+        
+        if (debug) {
+          printf("bits (del8) : %s\n", get_code_bits_as_string64(bits, 32).c_str());
+        }
+        
+# if defined(DEBUG)
+        assert(bitsReader.bitsInRegister >= 24);
+# endif // DEBUG
+        
+        bitsReader.bitsInRegister -= 24;
+      } else {
+# if defined(DEBUG)
+        assert((bits & 0xFFFF0000) != 0);
+# endif // DEBUG
+        
+        //unsigned int lz = __builtin_clz(bits);
+        //q = 32 - lz;
+        //q = lz;
+        
+        q = __builtin_clz(bits);
+        
+        symbol = q << k;
+        
+        if (debug) {
+          printf("q (num leading zeros): %d\n", q);
+        }
+        
+        // Shift left to place MSB of remainder at the MSB of register
+        bits <<= (q + 1);
+        
+        if (debug) {
+          printf("lshift   %2d : %s\n", q, get_code_bits_as_string64(bits, 32).c_str());
+        }
+        
+        // FIXME: shift right could use a mask based on k and a shift based
+        // on q to avoid using the result of the earlier left shift
+        
+        // Shift right to place LSB of remainder at bit offset 0
+        uint32_t rem = (bits >> 16) >> (16 - k);
+        
+        if (debug) {
+          printf("rem         : %s\n", get_code_bits_as_string64(rem, 32).c_str());
+        }
+        symbol |= rem;
+        
+        if (debug) {
+          printf("symbol      : %s\n", get_code_bits_as_string64(symbol, 32).c_str());
+        }
+        
+# if defined(DEBUG)
+        assert(bitsReader.bitsInRegister >= (q + 1 + k));
+# endif // DEBUG
+        bitsReader.bitsInRegister -= (q + 1 + k);
+        // was already shifted left by (q + 1) above, so shift left to consume rem bits
+        bits <<= k;
+        
+        if (debug) {
+          printf("lshift2  %2d : %s\n", k, get_code_bits_as_string64(bits, 32).c_str());
+        }
+        
+      }
+      
+      if (debug) {
+        printf("append decoded symbol = %d\n", symbol);
+      }
+      
+#if defined(DEBUG)
+      assert(outputByteOffset < outputByteLength);
+#endif // DEBUG
+      outputBytePtr[outputByteOffset++] = symbol;
+    }
+    
+    return nsymbols;
+  }
+  
+  // Decode symbols from a buffer of encoded bytes and
+  // return the results as a vector of decoded bytes.
+  // This method assumes that the k value is known.
+  
+  void decode(const uint8_t * bitBuff, const int bitBuffN,
+              uint8_t * symbolBuff, const int symbolBuffN,
+              const unsigned int k)
+  {
+    setupInputOutput(bitBuff, bitBuffN, symbolBuff, symbolBuffN);
+    
+    decodeSymbols(k, symbolBuffN);
+    
+    return;
+  }
+  
+  // Special case decoding method where the k value for a block of values is lookup
+  // up in tables. Pass count table which indicates how many blocks the corresponding
+  // n table entry corresponds to.
+  
+  void decode(const uint8_t * bitBuff, int bitBuffN,
+              uint8_t * symbolBuff, const int symbolBuffN,
+              const uint8_t * kLookupTable,
+              int kLookupTableLength,
+              const vector<uint32_t> & countTable,
+              const vector<uint32_t> & nTable)
+  {
+    const bool debug = false;
+    
+    setupInputOutput(bitBuff, bitBuffN, symbolBuff, symbolBuffN);
+    
+#if defined(DEBUG)
+    assert(countTable.size() == nTable.size());
+#endif // DEBUG
+    
+    int symboli = 0;
+    int blocki = 0;
+    
+    const int tableMax = (int) countTable.size();
+    for (int tablei = 0; tablei < tableMax; tablei++) {
+      // count indicates how many symbols are covered by block k
+      
+      int numBlockCount = countTable[tablei];
+      int numSymbolsPerBlock = nTable[tablei];
+      
+#if defined(DEBUG)
+      assert(numBlockCount > 0);
+      assert(numSymbolsPerBlock > 0);
+#endif // DEBUG
+      
+      // The same number of symbols are used for numBlockCount blocks.
+      
+      int maxBlocki = blocki + numBlockCount;
+      
+      if (debug) {
+        printf("blocki range (%d, %d) numSymbolsPerBlock %d\n", blocki, maxBlocki, numSymbolsPerBlock);
+      }
+      
+      for ( ; blocki < maxBlocki; blocki++ ) {
+        int k = kLookupTable[blocki];
+        
+        int maxSymboli = symboli + numSymbolsPerBlock;
+        
+        if (debug) {
+          printf("symboli range (%d, %d) k %d\n", symboli, maxSymboli, k);
+        }
+        
+        int numSymbolsDecoded = decodeSymbols(k, numSymbolsPerBlock);
+        
+#if defined(DEBUG)
+        assert(numSymbolsDecoded == numSymbolsPerBlock);
+#endif // DEBUG
+        
+        symboli += numSymbolsDecoded;
+      }
+    }
+    
+#if defined(DEBUG)
+    assert(blocki == (kLookupTableLength-1));
+    assert(symboli == symbolBuffN);
+#endif // DEBUG
+    
+    return;
+  }
+};
+
+
+// Special purpose split and block into groups of 4 encoding, where 4 values are
+// processed at a time so that prefix P and suffix S are stored as (SSSS PPPP)
+// 4 at a time. The prefix portion can contain OVER bits that do not fit into k.
+
+template <const bool U1, const bool U2, class BWBS>
+class RiceSplit16EncoderG4
+{
+  public:
+  // Emit MSB bit order
+  BitWriter<true, BWBS> bitWriter;
+  
+  // Defaults to emitting a word of zeros after
+  // the final full byte was emitted.
+  
+  bool writeZeroPadding;
+  
+  RiceSplit16EncoderG4() :writeZeroPadding(true) {
+  }
+  
+  void reset() {
+    bitWriter.reset();
+  }
+  
+  // If any bits still need to be emitted, emit final byte.
+  
+  void finish() {
+    // Do not adjust numEncodedBits
+    
+    unsigned int savedNumEncodedBits = bitWriter.numEncodedBits;
+    
+    if (bitWriter.bitOffset > 0) {
+      // Flush 1-8 bits to some external output.
+      // Note that all remaining bits must
+      // be flushed as true so that multiple
+      // symbols are not encoded at the end
+      // of the buffer.
+      
+      const int bitsUntilByte = 8 - bitWriter.bitOffset;
+      
+      for ( int i = 0; i < bitsUntilByte; i++ ) {
+        // Emit bit that is consumed by the decoder
+        // until the end of the input stream.
+        bitWriter.writeBit(U1);
+      }
+      
+      // Reset num bits so that it does not include
+      // the byte padding that was just emitted above.
+      bitWriter.numEncodedBits = savedNumEncodedBits;
+    }
+    
+    // 32 bits of zero padding
+    
+    if (writeZeroPadding) {
+      bitWriter.writeZeroByte();
+      bitWriter.writeZeroByte();
+      bitWriter.writeZeroByte();
+      bitWriter.writeZeroByte();
+    }
+  }
+  
+  void encodeBit(const bool bit) {
+    bitWriter.writeBit(bit);
+  }
+  
+  // Rice encode a byte symbol n with an encoding 2^k
+  // where k=0 uses 1 bit for the value zero. Note that
+  // if this method is invoked directly then finish()
+  // must be invoked after all symbols have been encoded.
+  
+  void encode(uint8_t n,
+              const unsigned int k,
+              const bool emitPrefix,
+              const bool emitSuffix)
+  {
+    const bool debug = false;
+    
+#if defined(DEBUG)
+    // In DEBUG mode, bits contains bits for this specific symbol.
+    vector<bool> bitsThisSymbol;
+    vector<bool> prefixBitsThisSymbol;
+    vector<bool> suffixBitsThisSymbol;
+    assert(U1 != U2);
+#endif // DEBUG
+    
+    const unsigned int m = (1 << k); // 2^k
+    const unsigned int q = pot_div_k(n, k);
+    
+    const unsigned int unaryNumBits = q + 1;
+    
+    if (debug) {
+      printf("n %3d : k %3d : m %3d : q = n / m = %d : unaryNumBits %d \n", n, k, m, q, unaryNumBits);
+    }
+    
+    if (unaryNumBits > 16) {
+      // unary1 -> LITERAL : encoded as 16 zero bits in a row.
+      
+      if (emitPrefix) {
+        for (int i = 0; i < 16; i++) {
+          encodeBit(U1);
+        }
+      }
+
+#if defined(DEBUG)
+      for (int i = 0; i < 16; i++) {
+        if (debug) {
+          prefixBitsThisSymbol.push_back(U1);
+          bitsThisSymbol.push_back(U1);
+        }
+      }
+#endif // DEBUG
+      
+#if defined(DEBUG)
+      // Write all 8 bits to bitsThisSymbol debug vector
+      for (int i = 7; i >= 0; i--) {
+        if (debug) {
+          bool bit = (((n >> i) & 0x1) != 0);
+          bitsThisSymbol.push_back(bit);
+        }
+      }
+#endif // DEBUG
+      
+      // Emit OVER bits (not k) to prefix stream
+      
+      uint8_t overBits = 0;
+      
+      if (emitPrefix || debug) {
+        for (int i = 7; i >= (int)k; i--) {
+          bool bit = (((n >> i) & 0x1) != 0);
+          if (debug) {
+            overBits |= (bit << i);
+          }
+          
+          if (emitPrefix) {
+            encodeBit(bit);
+          }
+          
+#if defined(DEBUG)
+          if (debug) {
+            prefixBitsThisSymbol.push_back(bit);
+          }
+#endif // DEBUG
+        }
+      }
+
+      // Emit most significant k bits to suffix stream
+      
+      uint8_t kBits = 0;
+      
+      if (emitSuffix || debug) {
+        for (int i = k - 1; i >= 0; i--) {
+          bool bit = (((n >> i) & 0x1) != 0);
+          
+          if (debug) {
+            kBits |= (bit << i);
+          }
+          
+          if (emitSuffix) {
+            encodeBit(bit);
+          }
+          
+#if defined(DEBUG)
+          if (debug) {
+            suffixBitsThisSymbol.push_back(bit);
+          }
+#endif // DEBUG
+        }
+      }
+
+      if (debug) {
+        printf("kBits     %s (%d bits)\n", get_code_bits_as_string64(kBits, 8).c_str(), k);
+        printf("overBits  %s (%d bits)\n", get_code_bits_as_string64(overBits,8).c_str(), 8-k);
+        
+#if defined(DEBUG)
+        // Combining overBits and q is simply a matter of ORing
+        // these values together, in decoding logic the MSB
+        // bits for overBits would need to be shifted left
+        // to mask off k bits.
+        assert(n == (overBits | kBits));
+#endif // DEBUG
+      }
+      
+    } else {
+      // emit PREFIX and or SUFFIX
+      
+#if defined(DEBUG)
+      // q can be in range (0, 15) : valid prefixCount range (1, 16)
+      assert(q < 16);
+      assert(unaryNumBits > 0);
+      assert(unaryNumBits < 17);
+#endif // DEBUG
+      
+      if (emitPrefix || debug) {
+        // Preix bits
+        
+        for (int i = 0; i < q; i++) {
+          if (emitPrefix) {
+            encodeBit(U1); // defaults to true
+          }
+#if defined(DEBUG)
+          if (debug) {
+            prefixBitsThisSymbol.push_back(U1);
+            bitsThisSymbol.push_back(U1);
+          }
+#endif // DEBUG
+        }
+        
+        if (emitPrefix) {
+          encodeBit(U2); // defaults to false
+        }
+
+#if defined(DEBUG)
+        if (debug) {
+          prefixBitsThisSymbol.push_back(U2);
+          bitsThisSymbol.push_back(U2);
+        }
+#endif // DEBUG
+      }
+
+      if (emitSuffix || debug) {
+        // suffix bits
+        
+        for (int i = k - 1; i >= 0; i--) {
+          bool bit = (((n >> i) & 0x1) != 0);
+          if (emitSuffix) {
+            encodeBit(bit);
+          }
+#if defined(DEBUG)
+          if (debug) {
+            suffixBitsThisSymbol.push_back(bit);
+            bitsThisSymbol.push_back(bit);
+          }
+#endif // DEBUG
+        }
+      }
+    }
+    
+    if (debug) {
+#if defined(DEBUG)
+      // Print bits that were emitted for this symbol,
+      // note the order from least to most significant
+      printf("bits for symbol (least -> most): ");
+      
+      for ( bool bit : bitsThisSymbol ) {
+        printf("%d", bit ? 1 : 0);
+      }
+      printf("\n");
+      
+      printf("prefix bits for symbol (least -> most): ");
+      
+      for ( bool bit : prefixBitsThisSymbol ) {
+        printf("%d", bit ? 1 : 0);
+      }
+      printf(" (%d)\n", (int)prefixBitsThisSymbol.size());
+      
+      printf("suffix bits for symbol (least -> most): ");
+      
+      for ( bool bit : suffixBitsThisSymbol ) {
+        printf("%d", bit ? 1 : 0);
+      }
+      printf(" (%d)\n", (int)suffixBitsThisSymbol.size());
+      printf("\n");
+#endif // DEBUG
+    }
+    
+    return;
+  }
+  
+  // Encode N symbols and emit any leftover bits
+  
+  void encode(const uint8_t * byteVals, int numByteVals, const unsigned int k) {
+    const bool debug = false;
+    for (int i = 0; i < numByteVals; i++) {
+      if (debug) {
+        printf("symboli %5d\n", i);
+      }
+      uint8_t byteVal = byteVals[i];
+      encode(byteVal, k);
+    }
+    finish();
+  }
+  
+  // Special case encoding method where the k value for a block of values is lookup
+  // up in tables. Pass count table which indicates how many blocks the corresponding
+  // n table entry corresponds to.
+  
+  void encode(const uint8_t * byteVals, int numByteVals,
+              const uint8_t * kLookupTable,
+              int kLookupTableLength,
+              const vector<uint32_t> & countTable,
+              const vector<uint32_t> & nTable)
+  {
+    const bool debug = false;
+    
+    assert(countTable.size() == nTable.size());
+    
+    int symboli = 0;
+    int blocki = 0;
+    
+    const int pN = 4;
+    
+    const int tableMax = (int) countTable.size();
+    for (int tablei = 0; tablei < tableMax; tablei++) {
+      // count indicates how many symbols are covered by block k
+      
+      int numBlockCount = countTable[tablei];
+      int numSymbolsPerBlock = nTable[tablei];
+      
+      assert(numBlockCount > 0);
+      assert(numSymbolsPerBlock > 0);
+
+      // Block size must be a multiple of pN
+      
+      assert((numSymbolsPerBlock % pN) == 0);
+      
+      // The same number of symbols are used for numBlockCount blocks.
+      
+      int maxBlocki = blocki + numBlockCount;
+      
+      if (debug) {
+        printf("blocki range (%d, %d) numSymbolsPerBlock %d\n", blocki, maxBlocki, numSymbolsPerBlock);
+      }
+      
+      for ( ; blocki < maxBlocki; blocki++ ) {
+        int k = kLookupTable[blocki];
+        
+        int maxSymboli = symboli + numSymbolsPerBlock;
+        
+        if (debug) {
+          printf("symboli range (%d, %d) k %d\n", symboli, maxSymboli, k);
+        }
+        
+        for ( ; symboli < maxSymboli; symboli += pN ) {
+          const int symboli4Max = symboli + pN;
+          
+          // Prefix
+          
+          for ( int i = symboli ; i < symboli4Max; i++ ) {
+            uint8_t byteVal = byteVals[i];
+            if (debug && 1) {
+              printf("symboli %5d : blocki %5d : k %2d : prefix bits\n", symboli, blocki, k);
+            }
+            
+            encode(byteVal, k, true, false);
+          }
+          
+          // Suffix
+          
+          for ( int i = symboli ; i < symboli4Max; i++ ) {
+            uint8_t byteVal = byteVals[i];
+            if (debug && 1) {
+              printf("symboli %5d : blocki %5d : k %2d : suffix bits\n", symboli, blocki, k);
+            }
+            
+            encode(byteVal, k, false, true);
+          }
+          
+        }
+      }
+    }
+    
+    assert(symboli == numByteVals);
+    // Note that the table lookup should contain one additional padding zero value
+    assert(blocki == (kLookupTableLength-1));
+    
+    finish();
+  }
+  
+  // Query number of bits needed to store symbol
+  // with the given k parameter. Note that this
+  // size query logic does not need to actually copy
+  // encoded bytes so it is much faster than encoding.
+  
+  int numBits(unsigned char n, const unsigned int k) {
+    const unsigned int q = pot_div_k(n, k);
+    const unsigned int unaryNumBits = q + 1;
+    if (unaryNumBits > 16) {
+      // 16 zeros = zero, special case to indicate literal 8 bits
+      return 16 + 8;
+    } else {
+      return unaryNumBits + k;
+    }
+  }
+  
+  // Query the number of bits needed to store these symbols
+  
+  int numBits(const uint8_t * byteVals, int numByteVals, const unsigned int k) {
+    int totalNumBits = 0;
+    for (int i = 0; i < numByteVals; i++) {
+      uint8_t byteVal = byteVals[i];
+      totalNumBits += numBits(byteVal, k);
+    }
+    return totalNumBits;
+  }
+  
+};
+
+// Split encoding where elements are broken into prefix and suffix and then
+// grouped 4 at a time.
+
+template <const bool U1, const bool U2, class BRBS>
+class RiceSplit16DecoderG4
+{
+public:
+  // Input bits. A unary prefix has a maximum length of 16
+  // and in that case the suffix contains the 8 literal bits.
+  // All symbol decode operations can be executed as long
+  // as 24 bits are loaded.
+  
+  uint32_t bits;
+  
+  BitReader<true, BRBS, 24> bitsReader;
+  
+  uint8_t *outputBytePtr;
+  int outputByteOffset;
+  int outputByteLength;
+  
+  RiceSplit16DecoderG4()
+  :bits(0),
+  outputBytePtr(nullptr),
+  outputByteOffset(-1),
+  outputByteLength(-1)
+  {
+    bitsReader.setBitsPtr(&bits);
+  }
+  
+  inline
+  void refillBits() {
+    bitsReader.refillBits();
+  }
+  
+  // Store refs to input and output byte bufers
+  
+  void setupInputOutput(const uint8_t * bitBuff, const int bitBuffN,
+                        uint8_t * symbolBuff, const int symbolBuffN)
+  {
+    bitsReader.byteReader.setupInput(bitBuff, bitBuffN);
+    
+    this->outputBytePtr = symbolBuff;
+    this->outputByteOffset = 0;
+    this->outputByteLength = symbolBuffN;
+    
+#if defined(DEBUG)
+    if (bitBuff != nullptr) {
+      uint8_t bVal = bitBuff[0];
+      bVal += bitBuff[bitBuffN-1];
+      
+      outputBytePtr[0] = bVal;
+      outputBytePtr[symbolBuffN-1] = bVal;
+    }
+#endif // DEBUG
+  }
+
+  // Decode prefix portion of symbol
+  
+  uint8_t decodePrefix(const unsigned int k) {
+    const bool debug = false;
+
+    unsigned int symbol;
+
+    if ((bits >> 16) == 0) {
+      // Special case for 16 bits of zeros in high halfword
+      
+# if defined(DEBUG)
+      assert(bitsReader.bitsInRegister >= 24);
+# endif // DEBUG
+      
+      bits <<= 16;
+      
+      if (debug) {
+        printf("bits (del16): %s\n", get_code_bits_as_string64(bits, 32).c_str());
+      }
+      
+# if defined(DEBUG)
+      assert(bitsReader.bitsInRegister >= (8 - k));
+# endif // DEBUG
+      
+      symbol = (bits >> 24) >> k << k;
+      
+      if (debug) {
+        printf("symbol      : %s\n", get_code_bits_as_string64(symbol, 32).c_str());
+      }
+      
+      bits <<= (8 - k);
+      
+      if (debug) {
+        printf("bits (del pre) : %s\n", get_code_bits_as_string64(bits, 32).c_str());
+      }
+      
+# if defined(DEBUG)
+      assert(bitsReader.bitsInRegister >= (24 - k));
+# endif // DEBUG
+      
+      bitsReader.bitsInRegister -= (24 - k);
+    } else {
+# if defined(DEBUG)
+      assert((bits & 0xFFFF0000) != 0);
+# endif // DEBUG
+      
+      //unsigned int lz = __builtin_clz(bits);
+      //q = 32 - lz;
+      //q = lz;
+      
+      if (debug) {
+        printf("bits : %s\n", get_code_bits_as_string64(bits, 32).c_str());
+      }
+      
+      unsigned int q;
+      q = __builtin_clz(bits);
+      
+      symbol = q << k;
+      
+      if (debug) {
+        printf("q (num leading zeros): %d\n", q);
+      }
+      
+      // Shift left to place MSB of remainder at the MSB of register
+      bits <<= (q + 1);
+      
+# if defined(DEBUG)
+      assert(bitsReader.bitsInRegister >= (q + 1));
+# endif // DEBUG
+      bitsReader.bitsInRegister -= (q + 1);
+      
+      if (debug) {
+        printf("lshift   %2d : %s\n", q, get_code_bits_as_string64(bits, 32).c_str());
+      }
+    }
+    
+    return symbol;
+  }
+
+  uint8_t decodeSuffix(const unsigned int k) {
+    const bool debug = false;
+
+    unsigned int rem;
+    
+    // Shift right to place LSB of remainder at bit offset 0
+    rem = (bits >> 16) >> (16 - k);
+    
+    if (debug) {
+      printf("rem         : %s\n", get_code_bits_as_string64(rem, 8).c_str());
+    }
+    
+# if defined(DEBUG)
+    assert(bitsReader.bitsInRegister >= k);
+# endif // DEBUG
+    bitsReader.bitsInRegister -= k;
+    bits <<= k;
+    
+    if (debug) {
+      printf("lshift2  %2d : %s\n", k, get_code_bits_as_string64(bits, 32).c_str());
+    }
+    
+    return rem;
+  }
+  
+  // Decode N symbols from the input stream and write decoded symbols
+  // to the output vector. Returns the number of symbols decoded.
+  
+  int decodeSymbols(const unsigned int k, const int nsymbols) {
+    const bool debug = false;
+    
+    if (debug) {
+      printf("k = %d\n", k);
+    }
+    
+    //const unsigned int m = (1 << k);
+
+    const int N = 4;
+    unsigned int decodedSymbols[N];
+    
+    assert((nsymbols % N) == 0);
+    
+    for ( int symboli = 0; symboli < nsymbols; symboli += N ) {
+      
+      for ( int si = 0 ; si < 4; si++ ) {
+        // Refill before reading a symbol
+        refillBits();
+        
+        uint8_t prefix = decodePrefix(k);
+        //uint8_t rem = decodeSuffix(k);
+        
+        unsigned int symbol;
+        symbol = prefix;
+        
+        if (debug) {
+          printf("append decoded prefix symbol = %d\n", symbol);
+        }
+        
+        decodedSymbols[si] = symbol;
+      }
+      
+      for ( int si = 0 ; si < 4; si++ ) {
+        // Refill before reading a symbol
+        refillBits();
+        
+        //uint8_t prefix = decodePrefix(k);
+        uint8_t rem = decodeSuffix(k);
+        
+        unsigned int symbol = decodedSymbols[si];
+        
+        symbol |= rem;
+        
+        if (debug) {
+          printf("append decoded prefix|suffix symbol = %d\n", symbol);
+        }
+        
+        decodedSymbols[si] = symbol;
+      }
+      
+      // Emit each symbol
+      
+      for ( int si = 0 ; si < 4; si++ ) {
+        unsigned int symbol = decodedSymbols[si];
+#if defined(DEBUG)
+        assert(outputByteOffset < outputByteLength);
+#endif // DEBUG
+        outputBytePtr[outputByteOffset++] = symbol;
+      }
+    }
+    
+    return nsymbols;
+  }
+  
+  // Decode symbols from a buffer of encoded bytes and
+  // return the results as a vector of decoded bytes.
+  // This method assumes that the k value is known.
+  
+  void decode(const uint8_t * bitBuff, const int bitBuffN,
+              uint8_t * symbolBuff, const int symbolBuffN,
+              const unsigned int k)
+  {
+    setupInputOutput(bitBuff, bitBuffN, symbolBuff, symbolBuffN);
+    
+    decodeSymbols(k, symbolBuffN);
+    
+    return;
+  }
+  
+  // Special case decoding method where the k value for a block of values is lookup
+  // up in tables. Pass count table which indicates how many blocks the corresponding
+  // n table entry corresponds to.
+  
+  void decode(const uint8_t * bitBuff, int bitBuffN,
+              uint8_t * symbolBuff, const int symbolBuffN,
+              const uint8_t * kLookupTable,
+              int kLookupTableLength,
+              const vector<uint32_t> & countTable,
+              const vector<uint32_t> & nTable)
+  {
+    const bool debug = false;
+    
+    setupInputOutput(bitBuff, bitBuffN, symbolBuff, symbolBuffN);
+    
+#if defined(DEBUG)
+    assert(countTable.size() == nTable.size());
+#endif // DEBUG
+    
+    int symboli = 0;
+    int blocki = 0;
+    
+    const int tableMax = (int) countTable.size();
+    for (int tablei = 0; tablei < tableMax; tablei++) {
+      // count indicates how many symbols are covered by block k
+      
+      int numBlockCount = countTable[tablei];
+      int numSymbolsPerBlock = nTable[tablei];
+      
+#if defined(DEBUG)
+      assert(numBlockCount > 0);
+      assert(numSymbolsPerBlock > 0);
+#endif // DEBUG
+      
+      // The same number of symbols are used for numBlockCount blocks.
+      
+      int maxBlocki = blocki + numBlockCount;
+      
+      if (debug) {
+        printf("blocki range (%d, %d) numSymbolsPerBlock %d\n", blocki, maxBlocki, numSymbolsPerBlock);
+      }
+      
+      for ( ; blocki < maxBlocki; blocki++ ) {
+        int k = kLookupTable[blocki];
+        
+        int maxSymboli = symboli + numSymbolsPerBlock;
+        
+        if (debug) {
+          printf("symboli range (%d, %d) k %d\n", symboli, maxSymboli, k);
+        }
+        
+        int numSymbolsDecoded = decodeSymbols(k, numSymbolsPerBlock);
+        
+#if defined(DEBUG)
+        assert(numSymbolsDecoded == numSymbolsPerBlock);
+#endif // DEBUG
+        
+        symboli += numSymbolsDecoded;
+      }
+    }
+    
+#if defined(DEBUG)
+    assert(blocki == (kLookupTableLength-1));
+    assert(symboli == symbolBuffN);
+#endif // DEBUG
+    
+    return;
+  }
+};
+
 // Special purpose "split" rice encoding where the bits that make up the unary
 // prefix bits are stored in one buffer while the remainder bits are stored
 // in a second buffer. This encoder checks for the case where the unary bits
@@ -1425,275 +2404,6 @@ public:
         return totalNumBits;
     }
     
-};
-
-// Optimized split16 decoder, this decoder makes use of a 16 bit input buffer
-// and when the special case of 16 input zero bits is found, it simply means
-// that the literal value is stored as 24 bits in the remainder. This special
-// case would only be activated for very large values so performance for
-// data that is mostly very small but has a few large deltas should be better
-// and this logic has a maximum prefix clz size of 16.
-// This decoder assumes that that unary pattern is N false values terminated
-// by a true value.
-
-template <const bool U1, const bool U2, class BRBS>
-class RiceSplit16Decoder
-{
-public:
-    // Input bits. A unary prefix has a maximum length of 16
-    // and in that case the suffix contains the 8 literal bits.
-    // All symbol decode operations can be executed as long
-    // as 24 bits are loaded.
-    
-    uint32_t bits;
-    
-    BitReader<true, BRBS, 24> bitsReader;
-    
-    uint8_t *outputBytePtr;
-    int outputByteOffset;
-    int outputByteLength;
-    
-    RiceSplit16Decoder()
-    :bits(0),
-    outputBytePtr(nullptr),
-    outputByteOffset(-1),
-    outputByteLength(-1)
-    {
-        bitsReader.setBitsPtr(&bits);
-    }
-    
-    inline
-    void refillBits() {
-        bitsReader.refillBits();
-    }
-    
-    // Store refs to input and output byte bufers
-    
-    void setupInputOutput(const uint8_t * bitBuff, const int bitBuffN,
-                          uint8_t * symbolBuff, const int symbolBuffN)
-    {
-        bitsReader.byteReader.setupInput(bitBuff, bitBuffN);
-        
-        this->outputBytePtr = symbolBuff;
-        this->outputByteOffset = 0;
-        this->outputByteLength = symbolBuffN;
-        
-#if defined(DEBUG)
-        if (bitBuff != nullptr) {
-            uint8_t bVal = bitBuff[0];
-            bVal += bitBuff[bitBuffN-1];
-            
-            outputBytePtr[0] = bVal;
-            outputBytePtr[symbolBuffN-1] = bVal;
-        }
-#endif // DEBUG
-    }
-    
-    // Decode N symbols from the input stream and write decoded symbols
-    // to the output vector. Returns the number of symbols decoded.
-    
-    int decodeSymbols(const unsigned int k, const int nsymbols) {
-        const bool debug = false;
-        
-        if (debug) {
-            printf("k = %d\n", k);
-        }
-        
-        //const unsigned int m = (1 << k);
-        
-        for ( int symboli = 0; symboli < nsymbols; symboli++ ) {
-            unsigned int symbol;
-            
-            // Refill before reading a symbol
-            refillBits();
-            
-            unsigned int q;
-                        
-            if ((bits >> 16) == 0) {
-                // Special case for 16 bits of zeros in high halfword
-                q = 0;
-                
-                // FIXME: skip 16 zeros and set symbol to 8 bit literal
-                
-# if defined(DEBUG)
-                assert(bitsReader.bitsInRegister >= 24);
-# endif // DEBUG
-                
-                bits <<= 16;
-                
-                if (debug) {
-                    printf("bits (del16): %s\n", get_code_bits_as_string64(bits, 32).c_str());
-                }
-                
-# if defined(DEBUG)
-                assert(bitsReader.bitsInRegister >= 8);
-# endif // DEBUG
-                
-                symbol = bits >> 24;
-                
-                if (debug) {
-                    printf("symbol      : %s\n", get_code_bits_as_string64(symbol, 32).c_str());
-                }
-                
-                bits <<= 8;
-                
-                if (debug) {
-                    printf("bits (del8) : %s\n", get_code_bits_as_string64(bits, 32).c_str());
-                }
-                
-# if defined(DEBUG)
-                assert(bitsReader.bitsInRegister >= 24);
-# endif // DEBUG
-
-                bitsReader.bitsInRegister -= 24;
-            } else {
-# if defined(DEBUG)
-                assert((bits & 0xFFFF0000) != 0);
-# endif // DEBUG
-                
-                //unsigned int lz = __builtin_clz(bits);
-                //q = 32 - lz;
-                //q = lz;
-                
-                q = __builtin_clz(bits);
-                
-                symbol = q << k;
-            
-            if (debug) {
-                printf("q (num leading zeros): %d\n", q);
-            }
-                
-            // Shift left to place MSB of remainder at the MSB of register
-            bits <<= (q + 1);
-            
-            if (debug) {
-                printf("lshift   %2d : %s\n", q, get_code_bits_as_string64(bits, 32).c_str());
-            }
-            
-            // FIXME: shift right could use a mask based on k and a shift based
-            // on q to avoid using the result of the earlier left shift
-                
-            // Shift right to place LSB of remainder at bit offset 0
-            uint32_t rem = (bits >> 16) >> (16 - k);
-                
-            if (debug) {
-                printf("rem         : %s\n", get_code_bits_as_string64(rem, 32).c_str());
-            }
-            symbol |= rem;
-            
-            if (debug) {
-                printf("symbol      : %s\n", get_code_bits_as_string64(symbol, 32).c_str());
-            }
-            
-# if defined(DEBUG)
-            assert(bitsReader.bitsInRegister >= (q + 1 + k));
-# endif // DEBUG
-            bitsReader.bitsInRegister -= (q + 1 + k);
-            // was already shifted left by (q + 1) above, so shift left to consume rem bits
-            bits <<= k;
-            
-            if (debug) {
-                printf("lshift2  %2d : %s\n", k, get_code_bits_as_string64(bits, 32).c_str());
-            }
-            
-            }
-            
-            if (debug) {
-                printf("append decoded symbol = %d\n", symbol);
-            }
-            
-#if defined(DEBUG)
-            assert(outputByteOffset < outputByteLength);
-#endif // DEBUG
-            outputBytePtr[outputByteOffset++] = symbol;
-        }
-        
-        return nsymbols;
-    }
-    
-    // Decode symbols from a buffer of encoded bytes and
-    // return the results as a vector of decoded bytes.
-    // This method assumes that the k value is known.
-    
-    void decode(const uint8_t * bitBuff, const int bitBuffN,
-                uint8_t * symbolBuff, const int symbolBuffN,
-                const unsigned int k)
-    {
-        setupInputOutput(bitBuff, bitBuffN, symbolBuff, symbolBuffN);
-        
-        decodeSymbols(k, symbolBuffN);
-        
-        return;
-    }
-    
-    // Special case decoding method where the k value for a block of values is lookup
-    // up in tables. Pass count table which indicates how many blocks the corresponding
-    // n table entry corresponds to.
-    
-    void decode(const uint8_t * bitBuff, int bitBuffN,
-                uint8_t * symbolBuff, const int symbolBuffN,
-                const uint8_t * kLookupTable,
-                int kLookupTableLength,
-                const vector<uint32_t> & countTable,
-                const vector<uint32_t> & nTable)
-    {
-        const bool debug = false;
-        
-        setupInputOutput(bitBuff, bitBuffN, symbolBuff, symbolBuffN);
-        
-#if defined(DEBUG)
-        assert(countTable.size() == nTable.size());
-#endif // DEBUG
-        
-        int symboli = 0;
-        int blocki = 0;
-        
-        const int tableMax = (int) countTable.size();
-        for (int tablei = 0; tablei < tableMax; tablei++) {
-            // count indicates how many symbols are covered by block k
-            
-            int numBlockCount = countTable[tablei];
-            int numSymbolsPerBlock = nTable[tablei];
-            
-#if defined(DEBUG)
-            assert(numBlockCount > 0);
-            assert(numSymbolsPerBlock > 0);
-#endif // DEBUG
-            
-            // The same number of symbols are used for numBlockCount blocks.
-            
-            int maxBlocki = blocki + numBlockCount;
-            
-            if (debug) {
-                printf("blocki range (%d, %d) numSymbolsPerBlock %d\n", blocki, maxBlocki, numSymbolsPerBlock);
-            }
-            
-            for ( ; blocki < maxBlocki; blocki++ ) {
-                int k = kLookupTable[blocki];
-                
-                int maxSymboli = symboli + numSymbolsPerBlock;
-                
-                if (debug) {
-                    printf("symboli range (%d, %d) k %d\n", symboli, maxSymboli, k);
-                }
-                
-                int numSymbolsDecoded = decodeSymbols(k, numSymbolsPerBlock);
-                
-#if defined(DEBUG)
-                assert(numSymbolsDecoded == numSymbolsPerBlock);
-#endif // DEBUG
-                
-                symboli += numSymbolsDecoded;
-            }
-        }
-        
-#if defined(DEBUG)
-        assert(blocki == (kLookupTableLength-1));
-        assert(symboli == symbolBuffN);
-#endif // DEBUG
-        
-        return;
-    }
 };
 
 // This optimized split16 decode will read from a prefix byte array source
