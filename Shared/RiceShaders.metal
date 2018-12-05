@@ -15,24 +15,6 @@ using namespace metal;
 
 #import "MetalUtils.metal"
 
-// This struct is duplicated from "AAPLShaders.metal" here since implementations
-// cannot be directly included due to conflicting symbol names
-
-// Vertex shader outputs and per-fragmeht inputs.  Includes clip-space position and vertex outputs
-//  interpolated by rasterizer and fed to each fragment genterated by clip-space primitives.
-typedef struct
-{
-    // The [[position]] attribute qualifier of this member indicates this value is the clip space
-    //   position of the vertex wen this structure is returned from the vertex shader
-    float4 clipSpacePosition [[position]];
-    
-    // Since this member does not have a special attribute qualifier, the rasterizer will
-    //   interpolate its value with values of other vertices making up the triangle and
-    //   pass that interpolated value to the fragment shader for each fragment in that triangle;
-    float2 textureCoordinate;
-    
-} RasterizerData;
-
 // Kernel that reads from 32 parallel streams and writes to an output 2D
 // textures that contains 4 values per BGRA pixel. This kernel loops
 // over 8x8 blocks in 2 steps. This weird CACHEDBIT_THREAD_SPECIFIC define
