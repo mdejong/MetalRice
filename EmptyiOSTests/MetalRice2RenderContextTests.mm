@@ -36,6 +36,8 @@ using namespace std;
 
 #import "EncDec.hpp"
 
+#import "InputImageRenderFrame.h"
+
 // Rice encode method
 
 static inline
@@ -7312,17 +7314,9 @@ vector<uint32_t> generateBitOffsets(const uint8_t * symbols,
   
   // Grab input pixels from PNG source
   
-  NSString *resFilename = @"BigBridge.png";
-  NSString* path = [[NSBundle mainBundle] pathForResource:resFilename ofType:nil];
-  NSAssert(path, @"path is nil");
+  InputImageRenderFrame *inputImageRenderFrame = [InputImageRenderFrame renderFrameForConfig:TEST_IMAGE4];
   
-  UIImage *img = [UIImage imageWithContentsOfFile:path];
-  assert(img);
-
-  assert((int)img.size.width == width);
-  assert((int)img.size.height == height);
-  
-  NSData *inputData = [self.class convertImageToGrayScale:img];
+  NSData *inputData = inputImageRenderFrame.inputData;
   
   memcpy(inputImageOrderPixels, inputData.bytes, inputData.length);
   
@@ -7969,40 +7963,6 @@ blockOptimalKTableData:blockOptimalKTableData
   }];
   
   return;
-}
-
-+ (NSData*) convertImageToGrayScale:(UIImage *)image
-{
-  // Create image rectangle with current image width/height
-  CGRect imageRect = CGRectMake(0, 0, image.size.width, image.size.height);
-  
-  // Grayscale color space
-  CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceGray();
-  
-  // Create bitmap content with current image size and grayscale colorspace
-  CGContextRef context = CGBitmapContextCreate(nil, image.size.width, image.size.height, 8, 0, colorSpace, kCGImageAlphaNone);
-  
-  // Draw image into current context, with specified rectangle
-  // using previously defined context (with grayscale colorspace)
-  CGContextDrawImage(context, imageRect, [image CGImage]);
-  
-  // Create bitmap image info from pixel data in current context
-  //CGImageRef imageRef = CGBitmapContextCreateImage(context);
-  
-  // Create a new UIImage object
-  //UIImage *newImage = [UIImage imageWithCGImage:imageRef];
-  
-  NSMutableData *mData = [NSMutableData dataWithBytes:CGBitmapContextGetData(context) length:image.size.width*image.size.height];
-  
-  // Release colorspace, context and bitmap information
-  CGColorSpaceRelease(colorSpace);
-  CGContextRelease(context);
-  //CFRelease(imageRef);
-  
-  // Return the new grayscale image
-  //return newImage;
-  
-  return [NSData dataWithData:mData];
 }
 
 @end

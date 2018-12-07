@@ -1,7 +1,5 @@
 #import <Foundation/Foundation.h>
 
-@import MetalKit;
-
 typedef enum {
   TEST_4x4_INCREASING1 = 0,
   TEST_4x4_INCREASING2,
