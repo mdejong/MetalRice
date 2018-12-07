@@ -23,7 +23,7 @@
 
 // Query GPU feature set flags
 
-@property (readonly) NSUInteger highestSupportedFeatureSet;
+//@property (readonly) NSUInteger highestSupportedFeatureSet;
 
 // Return 1 for A7, otherwise returns 2
 

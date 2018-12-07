@@ -28,6 +28,22 @@
 		3AF7EA0A1EB64A46003BB06D /* AAPLRenderer.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF7E9BF1EB64A46003BB06D /* AAPLRenderer.m */; };
 		3AF7EA0B1EB64A46003BB06D /* AAPLRenderer.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF7E9BF1EB64A46003BB06D /* AAPLRenderer.m */; };
 		3AF7EA0C1EB64A46003BB06D /* AAPLRenderer.m in Sources */ = {isa = PBXBuildFile; fileRef = 3AF7E9BF1EB64A46003BB06D /* AAPLRenderer.m */; };
+		3C0753BC21BA244B002F4B95 /* InputImageRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CE5C0FA1FCCF46A0031E0EA /* InputImageRenderFrame.m */; };
+		3C0753BD21BA244B002F4B95 /* InputImageRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CE5C0FA1FCCF46A0031E0EA /* InputImageRenderFrame.m */; };
+		3C0753BE21BA2451002F4B95 /* ImageHuge.png in Resources */ = {isa = PBXBuildFile; fileRef = 3C4DC8FA1FDB495F00AABD25 /* ImageHuge.png */; };
+		3C0753BF21BA2451002F4B95 /* ImageHuge.png in Resources */ = {isa = PBXBuildFile; fileRef = 3C4DC8FA1FDB495F00AABD25 /* ImageHuge.png */; };
+		3C0753C021BA2457002F4B95 /* Image.png in Resources */ = {isa = PBXBuildFile; fileRef = 3CB220A81F7E03FF0023B470 /* Image.png */; };
+		3C0753C121BA2457002F4B95 /* ImageIpadSize.png in Resources */ = {isa = PBXBuildFile; fileRef = 3C1C56B21FE4433E0024A55E /* ImageIpadSize.png */; };
+		3C0753C221BA2457002F4B95 /* BigBridge.png in Resources */ = {isa = PBXBuildFile; fileRef = 3C56AF9A1FEC70F000005C41 /* BigBridge.png */; };
+		3C0753C321BA2457002F4B95 /* Lenna_B.png in Resources */ = {isa = PBXBuildFile; fileRef = 3CC947D920F25E7800C2D92B /* Lenna_B.png */; };
+		3C0753C421BA2457002F4B95 /* Image.png in Resources */ = {isa = PBXBuildFile; fileRef = 3CB220A81F7E03FF0023B470 /* Image.png */; };
+		3C0753C521BA2457002F4B95 /* ImageIpadSize.png in Resources */ = {isa = PBXBuildFile; fileRef = 3C1C56B21FE4433E0024A55E /* ImageIpadSize.png */; };
+		3C0753C621BA2457002F4B95 /* BigBridge.png in Resources */ = {isa = PBXBuildFile; fileRef = 3C56AF9A1FEC70F000005C41 /* BigBridge.png */; };
+		3C0753C721BA2457002F4B95 /* Lenna_B.png in Resources */ = {isa = PBXBuildFile; fileRef = 3CC947D920F25E7800C2D92B /* Lenna_B.png */; };
+		3C0753CA21BA24A4002F4B95 /* Rice.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3CDE879E1FBDFE1300EDB3FC /* Rice.mm */; };
+		3C0753CB21BA24A5002F4B95 /* Rice.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3CDE879E1FBDFE1300EDB3FC /* Rice.mm */; };
+		3C0753CC21BA2878002F4B95 /* Util.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CDE87A11FC0FAAC00EDB3FC /* Util.m */; };
+		3C0753CD21BA2879002F4B95 /* Util.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CDE87A11FC0FAAC00EDB3FC /* Util.m */; };
 		3C123917214B7D22006E5548 /* MetalUtils.metal in Sources */ = {isa = PBXBuildFile; fileRef = 3C123916214B7D22006E5548 /* MetalUtils.metal */; };
 		3C123918214B7D22006E5548 /* MetalUtils.metal in Sources */ = {isa = PBXBuildFile; fileRef = 3C123916214B7D22006E5548 /* MetalUtils.metal */; };
 		3C123919214B7D22006E5548 /* MetalUtils.metal in Sources */ = {isa = PBXBuildFile; fileRef = 3C123916214B7D22006E5548 /* MetalUtils.metal */; };
@@ -655,7 +671,12 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3C0753C121BA2457002F4B95 /* ImageIpadSize.png in Resources */,
+				3C0753C021BA2457002F4B95 /* Image.png in Resources */,
+				3C0753BE21BA2451002F4B95 /* ImageHuge.png in Resources */,
+				3C0753C321BA2457002F4B95 /* Lenna_B.png in Resources */,
 				3AF7E9F21EB64A46003BB06D /* Main.storyboard in Resources */,
+				3C0753C221BA2457002F4B95 /* BigBridge.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -663,7 +684,12 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3C0753C521BA2457002F4B95 /* ImageIpadSize.png in Resources */,
+				3C0753C421BA2457002F4B95 /* Image.png in Resources */,
+				3C0753BF21BA2451002F4B95 /* ImageHuge.png in Resources */,
+				3C0753C721BA2457002F4B95 /* Lenna_B.png in Resources */,
 				3AF7EA051EB64A46003BB06D /* Main.storyboard in Resources */,
+				3C0753C621BA2457002F4B95 /* BigBridge.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -728,14 +754,17 @@
 				3C3176F6216EB3AA0064BDA8 /* MetalCropToTextureRenderFrame.m in Sources */,
 				3A30EDFF1EB698AD00B4FC0B /* AAPLImage.m in Sources */,
 				3C12391E214B7D84006E5548 /* ColumnRowSum.metal in Sources */,
+				3C0753BC21BA244B002F4B95 /* InputImageRenderFrame.m in Sources */,
 				3AF7E9EC1EB64A46003BB06D /* AAPLAppDelegate.m in Sources */,
 				3C8C9A53216EEF170033615B /* CombinedMetalRiceRenderFrame.m in Sources */,
 				3CD1E7922190D2320075F7A3 /* MetalRice2RenderFrame.m in Sources */,
 				3C73F0CA216AAEF300AA8DE8 /* DeltaEncoder.mm in Sources */,
 				3C123918214B7D22006E5548 /* MetalUtils.metal in Sources */,
+				3C0753CA21BA24A4002F4B95 /* Rice.mm in Sources */,
 				3CD1E7952190D2320075F7A3 /* MetalRice2RenderContext.m in Sources */,
 				3C123925214B7E83006E5548 /* MetalRenderContext.m in Sources */,
 				3C73F0AC216AA89400AA8DE8 /* RiceShaders.metal in Sources */,
+				3C0753CC21BA2878002F4B95 /* Util.m in Sources */,
 				3AF7E9E61EB64A46003BB06D /* main.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -753,12 +782,15 @@
 				3C123919214B7D22006E5548 /* MetalUtils.metal in Sources */,
 				63B42F181ED2063C00859D09 /* AAPLShaders.metal in Sources */,
 				3C12391F214B7D84006E5548 /* ColumnRowSum.metal in Sources */,
+				3C0753BD21BA244B002F4B95 /* InputImageRenderFrame.m in Sources */,
 				3C8C9A54216EEF170033615B /* CombinedMetalRiceRenderFrame.m in Sources */,
 				3C73F0AD216AA89400AA8DE8 /* RiceShaders.metal in Sources */,
+				3C0753CB21BA24A5002F4B95 /* Rice.mm in Sources */,
 				3A30EDFE1EB698AD00B4FC0B /* AAPLImage.m in Sources */,
 				3AF7EA021EB64A46003BB06D /* AAPLViewController.m in Sources */,
 				3AF7E9FC1EB64A46003BB06D /* main.m in Sources */,
 				3AF7EA0C1EB64A46003BB06D /* AAPLRenderer.m in Sources */,
+				3C0753CD21BA2879002F4B95 /* Util.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

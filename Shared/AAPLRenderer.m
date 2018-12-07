@@ -21,10 +21,9 @@ Implementation of renderer class which perfoms Metal setup and per frame renderi
 
 #import "InputImageRenderFrame.h"
 
-//#import "Util.h"
-
-#import "CGFrameBuffer.h"
+#if TARGET_OS_IPHONE
 #import "ImageData.h"
+#endif // TARGET_OS_IPHONE
 
 #import "MetalRenderContext.h"
 
@@ -241,6 +240,7 @@ blockOptimalKTableData:blockOptimalKTableData
         NSLog(@"wrote %@ as %d bytes", path, (int)outBlockOrderSymbolsData.length);
     }
   
+#if TARGET_OS_IPHONE
     if ((1)) {
         NSString *tmpDir = NSTemporaryDirectory();
         NSString *path = [tmpDir stringByAppendingPathComponent:@"block_deltas.png"];
@@ -256,6 +256,7 @@ blockOptimalKTableData:blockOptimalKTableData
         
         [ImageData dumpArrayOfGrayscale:mArr width:blockWidth filename:path];
     }
+#endif // TARGET_OS_IPHONE
     
   // Dump optimal k for block table, this is a table of byte values
 
@@ -266,7 +267,8 @@ blockOptimalKTableData:blockOptimalKTableData
     [blockOptimalKTableData writeToFile:path atomically:TRUE];
     NSLog(@"wrote %@ as %d bytes", path, (int)blockOptimalKTableData.length);
   }
-    
+  
+#if TARGET_OS_IPHONE
     if ((1)) {
         NSString *tmpDir = NSTemporaryDirectory();
         NSString *path = [tmpDir stringByAppendingPathComponent:@"block_optimal_k.png"];
@@ -282,6 +284,7 @@ blockOptimalKTableData:blockOptimalKTableData
         
         [ImageData dumpArrayOfGrayscale:mArr width:blockWidth filename:path];
     }
+#endif // TARGET_OS_IPHONE
 #endif // DEBUG
 
   // number of blocks must be an exact multiple of the block dimension

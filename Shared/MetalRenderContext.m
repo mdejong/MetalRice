@@ -408,6 +408,9 @@
     return state;
 }
 
+/*
+#if TARGET_OS_IPHONE
+
 - (NSUInteger)highestSupportedFeatureSet
 {
   const NSUInteger maxKnownFeatureSet = MTLFeatureSet_iOS_GPUFamily2_v1;
@@ -439,5 +442,8 @@
 {
   return (self.featureSetGPUFamily > 1);
 }
+
+#endif // TARGET_OS_IPHONE
+*/
 
 @end
