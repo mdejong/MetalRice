@@ -44,32 +44,20 @@
 		3C0753CB21BA24A5002F4B95 /* Rice.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3CDE879E1FBDFE1300EDB3FC /* Rice.mm */; };
 		3C0753CC21BA2878002F4B95 /* Util.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CDE87A11FC0FAAC00EDB3FC /* Util.m */; };
 		3C0753CD21BA2879002F4B95 /* Util.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CDE87A11FC0FAAC00EDB3FC /* Util.m */; };
-		3C0753DC21BA2C6C002F4B95 /* BlockTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C73F0BE216AA98800AA8DE8 /* BlockTests.mm */; };
-		3C0753DD21BA2C6F002F4B95 /* Block32Tests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C609B27218688C20094E625 /* Block32Tests.mm */; };
-		3C0753DE21BA2C72002F4B95 /* DeltaTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3C73F0C0216AA98900AA8DE8 /* DeltaTests.mm */; };
-		3C0753DF21BA2C75002F4B95 /* MetalRice2RenderContextTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3CD1E78B2190D1670075F7A3 /* MetalRice2RenderContextTests.mm */; };
-		3C0753E021BA2C78002F4B95 /* CachedBitsTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3CEF86CA21731D830066F447 /* CachedBitsTests.mm */; };
 		3C0753E121BA2F4A002F4B95 /* InputImageRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CE5C0FA1FCCF46A0031E0EA /* InputImageRenderFrame.m */; };
 		3C0753E221BA2F4A002F4B95 /* InputImageRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CE5C0FA1FCCF46A0031E0EA /* InputImageRenderFrame.m */; };
-		3C0753E321BA2F4B002F4B95 /* InputImageRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3CE5C0FA1FCCF46A0031E0EA /* InputImageRenderFrame.m */; };
 		3C0A904221BA3A5E00298144 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C0A904121BA3A5E00298144 /* QuartzCore.framework */; };
-		3C0A904321BA3BC400298144 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C0A904121BA3A5E00298144 /* QuartzCore.framework */; };
-		3C0A904521BA3CF800298144 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C0A904421BA3CF700298144 /* MetalKit.framework */; };
-		3C0A904721BA3D6D00298144 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C0A904621BA3D6D00298144 /* Metal.framework */; };
 		3C0A906121BD123800298144 /* Metal2DColRowSumRenderContextTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C0A906021BD123800298144 /* Metal2DColRowSumRenderContextTests.m */; };
-		3C0A906221BD124100298144 /* Metal2DColRowSumRenderContextTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C0A906021BD123800298144 /* Metal2DColRowSumRenderContextTests.m */; };
 		3C0A906721BD126900298144 /* Metal2DColRowSumRenderContext.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C0A906321BD126800298144 /* Metal2DColRowSumRenderContext.m */; };
 		3C0A906821BD126900298144 /* Metal2DColRowSumRenderContext.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C0A906321BD126800298144 /* Metal2DColRowSumRenderContext.m */; };
 		3C0A906921BD126900298144 /* Metal2DColRowSumRenderContext.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C0A906321BD126800298144 /* Metal2DColRowSumRenderContext.m */; };
 		3C0A906A21BD126900298144 /* Metal2DColRowSumRenderContext.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C0A906321BD126800298144 /* Metal2DColRowSumRenderContext.m */; };
 		3C0A906B21BD126900298144 /* Metal2DColRowSumRenderContext.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C0A906321BD126800298144 /* Metal2DColRowSumRenderContext.m */; };
-		3C0A906C21BD126900298144 /* Metal2DColRowSumRenderContext.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C0A906321BD126800298144 /* Metal2DColRowSumRenderContext.m */; };
 		3C0A906D21BD126900298144 /* Metal2DColRowSumRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C0A906621BD126900298144 /* Metal2DColRowSumRenderFrame.m */; };
 		3C0A906E21BD126900298144 /* Metal2DColRowSumRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C0A906621BD126900298144 /* Metal2DColRowSumRenderFrame.m */; };
 		3C0A906F21BD126900298144 /* Metal2DColRowSumRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C0A906621BD126900298144 /* Metal2DColRowSumRenderFrame.m */; };
 		3C0A907021BD126900298144 /* Metal2DColRowSumRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C0A906621BD126900298144 /* Metal2DColRowSumRenderFrame.m */; };
 		3C0A907121BD126900298144 /* Metal2DColRowSumRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C0A906621BD126900298144 /* Metal2DColRowSumRenderFrame.m */; };
-		3C0A907221BD126900298144 /* Metal2DColRowSumRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C0A906621BD126900298144 /* Metal2DColRowSumRenderFrame.m */; };
 		3C123917214B7D22006E5548 /* MetalUtils.metal in Sources */ = {isa = PBXBuildFile; fileRef = 3C123916214B7D22006E5548 /* MetalUtils.metal */; };
 		3C123918214B7D22006E5548 /* MetalUtils.metal in Sources */ = {isa = PBXBuildFile; fileRef = 3C123916214B7D22006E5548 /* MetalUtils.metal */; };
 		3C123919214B7D22006E5548 /* MetalUtils.metal in Sources */ = {isa = PBXBuildFile; fileRef = 3C123916214B7D22006E5548 /* MetalUtils.metal */; };
@@ -155,13 +143,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		3C0753D721BA2C4E002F4B95 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 3AF7E9B81EB64A46003BB06D /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 3AF7E9F71EB64A46003BB06D;
-			remoteInfo = "MetalRice-macOS";
-		};
 		3C5401ED20E9993500077A75 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 3AF7E9B81EB64A46003BB06D /* Project object */;
@@ -205,8 +186,6 @@
 		3AF7EA011EB64A46003BB06D /* AAPLViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AAPLViewController.m; sourceTree = "<group>"; };
 		3AF7EA041EB64A46003BB06D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		3AF7EA061EB64A46003BB06D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		3C0753D221BA2C4E002F4B95 /* EmptyMacOSXTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EmptyMacOSXTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		3C0753D621BA2C4E002F4B95 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		3C0A904121BA3A5E00298144 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		3C0A904421BA3CF700298144 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		3C0A904621BA3D6D00298144 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
@@ -307,16 +286,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		3C0753CF21BA2C4E002F4B95 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				3C0A904721BA3D6D00298144 /* Metal.framework in Frameworks */,
-				3C0A904521BA3CF800298144 /* MetalKit.framework in Frameworks */,
-				3C0A904321BA3BC400298144 /* QuartzCore.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		3C5401D220E9993000077A75 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -371,7 +340,6 @@
 				3AF7E9F91EB64A46003BB06D /* macOS */,
 				3C5401D620E9993000077A75 /* EmptyiOS */,
 				3C5401EF20E9993500077A75 /* EmptyiOSTests */,
-				3C0753D321BA2C4E002F4B95 /* EmptyMacOSXTests */,
 				3AF7E9C91EB64A46003BB06D /* Products */,
 				BAF19B51F5CC6B560567D1A3 /* Configuration */,
 				BC4A753D78DE6B5DFEAA247C /* LICENSE */,
@@ -449,7 +417,6 @@
 				3AF7E9F81EB64A46003BB06D /* MetalRice.app */,
 				3C5401D520E9993000077A75 /* EmptyiOS.app */,
 				3C5401EC20E9993500077A75 /* EmptyiOSTests.xctest */,
-				3C0753D221BA2C4E002F4B95 /* EmptyMacOSXTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -520,14 +487,6 @@
 				3AF7E9FB1EB64A46003BB06D /* main.m */,
 			);
 			name = "Supporting Files";
-			sourceTree = "<group>";
-		};
-		3C0753D321BA2C4E002F4B95 /* EmptyMacOSXTests */ = {
-			isa = PBXGroup;
-			children = (
-				3C0753D621BA2C4E002F4B95 /* Info.plist */,
-			);
-			path = EmptyMacOSXTests;
 			sourceTree = "<group>";
 		};
 		3C0A904021BA3A5E00298144 /* Frameworks */ = {
@@ -640,24 +599,6 @@
 			productReference = 3AF7E9F81EB64A46003BB06D /* MetalRice.app */;
 			productType = "com.apple.product-type.application";
 		};
-		3C0753D121BA2C4E002F4B95 /* EmptyMacOSXTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 3C0753D921BA2C4E002F4B95 /* Build configuration list for PBXNativeTarget "EmptyMacOSXTests" */;
-			buildPhases = (
-				3C0753CE21BA2C4E002F4B95 /* Sources */,
-				3C0753CF21BA2C4E002F4B95 /* Frameworks */,
-				3C0753D021BA2C4E002F4B95 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				3C0753D821BA2C4E002F4B95 /* PBXTargetDependency */,
-			);
-			name = EmptyMacOSXTests;
-			productName = EmptyMacOSXTests;
-			productReference = 3C0753D221BA2C4E002F4B95 /* EmptyMacOSXTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
 		3C5401D420E9993000077A75 /* EmptyiOS */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3C5401F320E9993500077A75 /* Build configuration list for PBXNativeTarget "EmptyiOS" */;
@@ -716,12 +657,6 @@
 						DevelopmentTeam = 9F74CLHA49;
 						ProvisioningStyle = Manual;
 					};
-					3C0753D121BA2C4E002F4B95 = {
-						CreatedOnToolsVersion = 10.1;
-						DevelopmentTeam = 9F74CLHA49;
-						ProvisioningStyle = Automatic;
-						TestTargetID = 3AF7E9F71EB64A46003BB06D;
-					};
 					3C5401D420E9993000077A75 = {
 						CreatedOnToolsVersion = 9.4.1;
 						DevelopmentTeam = 9F74CLHA49;
@@ -753,7 +688,6 @@
 				3AF7E9F71EB64A46003BB06D /* MetalRice-macOS */,
 				3C5401D420E9993000077A75 /* EmptyiOS */,
 				3C5401EB20E9993500077A75 /* EmptyiOSTests */,
-				3C0753D121BA2C4E002F4B95 /* EmptyMacOSXTests */,
 			);
 		};
 /* End PBXProject section */
@@ -796,13 +730,6 @@
 				3C0753C721BA2457002F4B95 /* Lenna_B.png in Resources */,
 				3AF7EA051EB64A46003BB06D /* Main.storyboard in Resources */,
 				3C0753C621BA2457002F4B95 /* BigBridge.png in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		3C0753D021BA2C4E002F4B95 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -913,22 +840,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		3C0753CE21BA2C4E002F4B95 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				3C0A906221BD124100298144 /* Metal2DColRowSumRenderContextTests.m in Sources */,
-				3C0753DC21BA2C6C002F4B95 /* BlockTests.mm in Sources */,
-				3C0753DE21BA2C72002F4B95 /* DeltaTests.mm in Sources */,
-				3C0A906C21BD126900298144 /* Metal2DColRowSumRenderContext.m in Sources */,
-				3C0753E321BA2F4B002F4B95 /* InputImageRenderFrame.m in Sources */,
-				3C0753E021BA2C78002F4B95 /* CachedBitsTests.mm in Sources */,
-				3C0753DD21BA2C6F002F4B95 /* Block32Tests.mm in Sources */,
-				3C0A907221BD126900298144 /* Metal2DColRowSumRenderFrame.m in Sources */,
-				3C0753DF21BA2C75002F4B95 /* MetalRice2RenderContextTests.mm in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		3C5401D120E9993000077A75 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -987,11 +898,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		3C0753D821BA2C4E002F4B95 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 3AF7E9F71EB64A46003BB06D /* MetalRice-macOS */;
-			targetProxy = 3C0753D721BA2C4E002F4B95 /* PBXContainerItemProxy */;
-		};
 		3C5401EE20E9993500077A75 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 3C5401D420E9993000077A75 /* EmptyiOS */;
@@ -1267,57 +1173,6 @@
 			};
 			name = Release;
 		};
-		3C0753DA21BA2C4E002F4B95 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_IDENTITY = "Mac Developer";
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = 9F74CLHA49;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				INFOPLIST_FILE = EmptyMacOSXTests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.helpurock.EmptyMacOSXTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MetalRice.app/Contents/MacOS/MetalRice";
-			};
-			name = Debug;
-		};
-		3C0753DB21BA2C4E002F4B95 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_IDENTITY = "Mac Developer";
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = 9F74CLHA49;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				INFOPLIST_FILE = EmptyMacOSXTests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 10.13;
-				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.helpurock.EmptyMacOSXTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MetalRice.app/Contents/MacOS/MetalRice";
-			};
-			name = Release;
-		};
 		3C5401F420E9993500077A75 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1451,15 +1306,6 @@
 			buildConfigurations = (
 				3AF7EA221EB64A46003BB06D /* Debug */,
 				3AF7EA231EB64A46003BB06D /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		3C0753D921BA2C4E002F4B95 /* Build configuration list for PBXNativeTarget "EmptyMacOSXTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				3C0753DA21BA2C4E002F4B95 /* Debug */,
-				3C0753DB21BA2C4E002F4B95 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
