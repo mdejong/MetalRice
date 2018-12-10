@@ -1628,7 +1628,7 @@
       for (int col = 0; col < width; col++) {
         int offset = (row * width) + col;
         int val = ptr[offset];
-        printf("%3d ", val);
+        printf("%3d, ", val);
       }
       printf("\n");
     }
