@@ -405,6 +405,13 @@ blockOptimalKTableData:blockOptimalKTableData
         [self.combinedFrames addObject:combinedRenderFrame];
       }
       
+      {
+        int maxNumThreadsPerThreadgroup = (int) self.metalRiceRenderContext.computePipelineState.maxTotalThreadsPerThreadgroup;
+        NSUInteger numThreadsInSIMDGroup = self.metalRiceRenderContext.computePipelineState.threadExecutionWidth;
+        
+        printf("maxNumThreadsPerThreadgroup %d : numThreadsInSIMDGroup %d\n", (int)maxNumThreadsPerThreadgroup, (int)numThreadsInSIMDGroup);
+      }
+      
       // Query size and byte data for input frame that will be rendered
       
       InputImageRenderFrameConfig hcfg;

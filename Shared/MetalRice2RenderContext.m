@@ -37,19 +37,40 @@
   
   shader = self.computeKernelFunction;
   
-  if (self.bytesPerThread == 0) {
-    self.bytesPerThread = 128 / 4; // 32 threads in threadgroup
-  }
-  
   if (shader == nil) {
+    // Need to check the pipelineState.threadExecutionWidth and
+    // select "_sync" function is the number of threads in
+    // a warp is not 32, but that means the pipeline needs to
+    // be created before it can be inspected.
+    
     shader = @"kernel_render_rice2_undelta";
+    
+    self.computePipelineState = [mrc makePipeline:MTLPixelFormatR8Unorm
+                                    pipelineLabel:@"RenderRice2 Pipeline"
+                               kernelFunctionName:shader];
+    
+    NSAssert(self.computePipelineState, @"computePipelineState");
+    
+    int numThreadsInSIMDGroup = (int) self.computePipelineState.threadExecutionWidth;
+    
+    if (numThreadsInSIMDGroup != 32) {
+      shader = @"kernel_render_rice2_undelta_sync";
+      
+      self.computePipelineState = [mrc makePipeline:MTLPixelFormatR8Unorm
+                                      pipelineLabel:@"RenderRice2 Pipeline"
+                                 kernelFunctionName:shader];
+      
+      NSAssert(self.computePipelineState, @"computePipelineState");
+    }
   }
   
   // FIXME: no reason to pass MTLPixelFormatR8Unorm to compute pipeline
   
-  self.computePipelineState = [mrc makePipeline:MTLPixelFormatR8Unorm
-                                  pipelineLabel:@"RenderRicePrefix Pipeline"
-                             kernelFunctionName:shader];
+  if (self.computePipelineState == nil) {
+    self.computePipelineState = [mrc makePipeline:MTLPixelFormatR8Unorm
+                                    pipelineLabel:@"RenderRice2 Pipeline"
+                               kernelFunctionName:shader];
+  }
 
   NSAssert(self.computePipelineState, @"computePipelineState");
 }

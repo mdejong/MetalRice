@@ -25,10 +25,6 @@
 
 @property (nonatomic, assign) BOOL computeKernelPassArg32;
 
-// The number of bytes that each thread maps to
-
-@property (nonatomic, assign) NSUInteger bytesPerThread;
-
 // Computed shader dimensions
 
 @property (nonatomic, assign) MTLSize threadgroupsPerGrid;
