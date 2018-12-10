@@ -11,3 +11,5 @@ The Metal compute kernel is able to decode 2048x1536 bytes of data in 8-9 ms on 
 ## Implementation
 See AAPLRenderer.m and RiceShaders.metal for the core GPU rendering logic.
 
+http://www.modejong.com/blog/post23_metal_rice/index.html
+
