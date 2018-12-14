@@ -147,6 +147,20 @@
 		3C3176F9216EB3AA0064BDA8 /* MetalCropToTextureRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C3176F4216EB3AA0064BDA8 /* MetalCropToTextureRenderFrame.m */; };
 		3C3B550D21A1512C004139CC /* BigBridge.png in Resources */ = {isa = PBXBuildFile; fileRef = 3C56AF9A1FEC70F000005C41 /* BigBridge.png */; };
 		3C3B550E21A1512E004139CC /* BigBridge.png in Resources */ = {isa = PBXBuildFile; fileRef = 3C56AF9A1FEC70F000005C41 /* BigBridge.png */; };
+		3C3B5D0821C32C34002C425D /* MetalRiceRenderContext.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C3B5D0421C32C33002C425D /* MetalRiceRenderContext.m */; };
+		3C3B5D0921C32C34002C425D /* MetalRiceRenderContext.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C3B5D0421C32C33002C425D /* MetalRiceRenderContext.m */; };
+		3C3B5D0A21C32C34002C425D /* MetalRiceRenderContext.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C3B5D0421C32C33002C425D /* MetalRiceRenderContext.m */; };
+		3C3B5D0B21C32C34002C425D /* MetalRiceRenderContext.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C3B5D0421C32C33002C425D /* MetalRiceRenderContext.m */; };
+		3C3B5D0C21C32C34002C425D /* MetalRiceRenderContext.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C3B5D0421C32C33002C425D /* MetalRiceRenderContext.m */; };
+		3C3B5D0D21C32C34002C425D /* MetalRiceRenderContext.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C3B5D0421C32C33002C425D /* MetalRiceRenderContext.m */; };
+		3C3B5D0E21C32C34002C425D /* MetalRiceRenderContext.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C3B5D0421C32C33002C425D /* MetalRiceRenderContext.m */; };
+		3C3B5D0F21C32C34002C425D /* MetalRiceRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C3B5D0521C32C33002C425D /* MetalRiceRenderFrame.m */; };
+		3C3B5D1021C32C34002C425D /* MetalRiceRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C3B5D0521C32C33002C425D /* MetalRiceRenderFrame.m */; };
+		3C3B5D1121C32C34002C425D /* MetalRiceRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C3B5D0521C32C33002C425D /* MetalRiceRenderFrame.m */; };
+		3C3B5D1221C32C34002C425D /* MetalRiceRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C3B5D0521C32C33002C425D /* MetalRiceRenderFrame.m */; };
+		3C3B5D1321C32C34002C425D /* MetalRiceRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C3B5D0521C32C33002C425D /* MetalRiceRenderFrame.m */; };
+		3C3B5D1421C32C34002C425D /* MetalRiceRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C3B5D0521C32C33002C425D /* MetalRiceRenderFrame.m */; };
+		3C3B5D1521C32C34002C425D /* MetalRiceRenderFrame.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C3B5D0521C32C33002C425D /* MetalRiceRenderFrame.m */; };
 		3C40782B20F305770006EE27 /* Rice.mm in Sources */ = {isa = PBXBuildFile; fileRef = 3CDE879E1FBDFE1300EDB3FC /* Rice.mm */; };
 		3C4DC8FB1FDB495F00AABD25 /* ImageHuge.png in Resources */ = {isa = PBXBuildFile; fileRef = 3C4DC8FA1FDB495F00AABD25 /* ImageHuge.png */; };
 		3C5401D920E9993100077A75 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 3C5401D820E9993100077A75 /* AppDelegate.m */; };
@@ -285,6 +299,10 @@
 		3C3176ED216EB3530064BDA8 /* MetalCropToTextureRenderContext.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MetalCropToTextureRenderContext.m; sourceTree = "<group>"; };
 		3C3176F3216EB3A90064BDA8 /* MetalCropToTextureRenderFrame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MetalCropToTextureRenderFrame.h; sourceTree = "<group>"; };
 		3C3176F4216EB3AA0064BDA8 /* MetalCropToTextureRenderFrame.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MetalCropToTextureRenderFrame.m; sourceTree = "<group>"; };
+		3C3B5D0421C32C33002C425D /* MetalRiceRenderContext.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MetalRiceRenderContext.m; sourceTree = "<group>"; };
+		3C3B5D0521C32C33002C425D /* MetalRiceRenderFrame.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MetalRiceRenderFrame.m; sourceTree = "<group>"; };
+		3C3B5D0621C32C34002C425D /* MetalRiceRenderContext.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MetalRiceRenderContext.h; sourceTree = "<group>"; };
+		3C3B5D0721C32C34002C425D /* MetalRiceRenderFrame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MetalRiceRenderFrame.h; sourceTree = "<group>"; };
 		3C40782C20F5368C0006EE27 /* byte_bit_stream.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = byte_bit_stream.hpp; sourceTree = "<group>"; };
 		3C40782D20F707180006EE27 /* block_process.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = block_process.hpp; sourceTree = "<group>"; };
 		3C4DC8FA1FDB495F00AABD25 /* ImageHuge.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ImageHuge.png; sourceTree = "<group>"; };
@@ -488,6 +506,10 @@
 				3CD1E7902190D2310075F7A3 /* MetalRice2RenderContext.m */,
 				3CD1E78E2190D2310075F7A3 /* MetalRice2RenderFrame.h */,
 				3CD1E78F2190D2310075F7A3 /* MetalRice2RenderFrame.m */,
+				3C3B5D0621C32C34002C425D /* MetalRiceRenderContext.h */,
+				3C3B5D0421C32C33002C425D /* MetalRiceRenderContext.m */,
+				3C3B5D0721C32C34002C425D /* MetalRiceRenderFrame.h */,
+				3C3B5D0521C32C33002C425D /* MetalRiceRenderFrame.m */,
 				3C0A906421BD126900298144 /* Metal2DColRowSumRenderContext.h */,
 				3C0A906321BD126800298144 /* Metal2DColRowSumRenderContext.m */,
 				3C0A906521BD126900298144 /* Metal2DColRowSumRenderFrame.h */,
@@ -977,6 +999,7 @@
 				3C123924214B7E83006E5548 /* MetalRenderContext.m in Sources */,
 				3CD1E7942190D2320075F7A3 /* MetalRice2RenderContext.m in Sources */,
 				3C73F0AB216AA89400AA8DE8 /* RiceShaders.metal in Sources */,
+				3C3B5D0F21C32C34002C425D /* MetalRiceRenderFrame.m in Sources */,
 				3CC947D820EEE6E500C2D92B /* ImageData.m in Sources */,
 				3C73F0C9216AAEF300AA8DE8 /* DeltaEncoder.mm in Sources */,
 				3CC947D520EEE5ED00C2D92B /* CGFrameBuffer.m in Sources */,
@@ -985,6 +1008,7 @@
 				3C12391D214B7D84006E5548 /* ColumnRowSum.metal in Sources */,
 				3AF7E9D31EB64A46003BB06D /* AAPLAppDelegate.m in Sources */,
 				3AF7E9CD1EB64A46003BB06D /* main.m in Sources */,
+				3C3B5D0821C32C34002C425D /* MetalRiceRenderContext.m in Sources */,
 				3CDE87A21FC0FAAC00EDB3FC /* Util.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1003,10 +1027,12 @@
 				3C0A906E21BD126900298144 /* Metal2DColRowSumRenderFrame.m in Sources */,
 				3C0753BC21BA244B002F4B95 /* InputImageRenderFrame.m in Sources */,
 				3AF7E9EC1EB64A46003BB06D /* AAPLAppDelegate.m in Sources */,
+				3C3B5D1021C32C34002C425D /* MetalRiceRenderFrame.m in Sources */,
 				3C8C9A53216EEF170033615B /* CombinedMetalRiceRenderFrame.m in Sources */,
 				3CD1E7922190D2320075F7A3 /* MetalRice2RenderFrame.m in Sources */,
 				3C73F0CA216AAEF300AA8DE8 /* DeltaEncoder.mm in Sources */,
 				3C123918214B7D22006E5548 /* MetalUtils.metal in Sources */,
+				3C3B5D0921C32C34002C425D /* MetalRiceRenderContext.m in Sources */,
 				3C0753CA21BA24A4002F4B95 /* Rice.mm in Sources */,
 				3CD1E7952190D2320075F7A3 /* MetalRice2RenderContext.m in Sources */,
 				3C123925214B7E83006E5548 /* MetalRenderContext.m in Sources */,
@@ -1025,11 +1051,13 @@
 				3C3176F7216EB3AA0064BDA8 /* MetalCropToTextureRenderFrame.m in Sources */,
 				3C3176F0216EB3530064BDA8 /* MetalCropToTextureRenderContext.m in Sources */,
 				3C0A906F21BD126900298144 /* Metal2DColRowSumRenderFrame.m in Sources */,
+				3C3B5D0A21C32C34002C425D /* MetalRiceRenderContext.m in Sources */,
 				3C123926214B7E83006E5548 /* MetalRenderContext.m in Sources */,
 				3CD1E7932190D2320075F7A3 /* MetalRice2RenderFrame.m in Sources */,
 				3CD1E7962190D2320075F7A3 /* MetalRice2RenderContext.m in Sources */,
 				3C123919214B7D22006E5548 /* MetalUtils.metal in Sources */,
 				63B42F181ED2063C00859D09 /* AAPLShaders.metal in Sources */,
+				3C3B5D1121C32C34002C425D /* MetalRiceRenderFrame.m in Sources */,
 				3C12391F214B7D84006E5548 /* ColumnRowSum.metal in Sources */,
 				3C0753BD21BA244B002F4B95 /* InputImageRenderFrame.m in Sources */,
 				3C8C9A54216EEF170033615B /* CombinedMetalRiceRenderFrame.m in Sources */,
@@ -1058,9 +1086,11 @@
 				3C0A90A721BDC4F500298144 /* AppDelegate.m in Sources */,
 				3C0A90CF21BDC8E300298144 /* MetalCropToTextureRenderContext.m in Sources */,
 				3C0A90D521BDC8E300298144 /* Metal2DColRowSumRenderFrame.m in Sources */,
+				3C3B5D0D21C32C34002C425D /* MetalRiceRenderContext.m in Sources */,
 				3C0A90DA21BDC8E300298144 /* RiceShaders.metal in Sources */,
 				3C0A90CC21BDC8E300298144 /* MetalRenderContext.m in Sources */,
 				3C0A90D721BDC8E300298144 /* AAPLShaders.metal in Sources */,
+				3C3B5D1421C32C34002C425D /* MetalRiceRenderFrame.m in Sources */,
 				3C0A90D221BDC8E300298144 /* MetalRice2RenderContext.m in Sources */,
 				3C0A90D321BDC8E300298144 /* MetalRice2RenderFrame.m in Sources */,
 				3C0A90D821BDC8E300298144 /* MetalUtils.metal in Sources */,
@@ -1076,7 +1106,9 @@
 			files = (
 				3C0A90CA21BDC6A000298144 /* Metal2DColRowSumRenderContextTests.m in Sources */,
 				3C0A90E121BDC8E400298144 /* CombinedMetalRiceRenderFrame.m in Sources */,
+				3C3B5D1521C32C34002C425D /* MetalRiceRenderFrame.m in Sources */,
 				3C0A90C521BDC6A000298144 /* BlockTests.mm in Sources */,
+				3C3B5D0E21C32C34002C425D /* MetalRiceRenderContext.m in Sources */,
 				3C0A90E521BDC8E400298144 /* Metal2DColRowSumRenderFrame.m in Sources */,
 				3C0A90E421BDC8E400298144 /* Metal2DColRowSumRenderContext.m in Sources */,
 				3C0A90E221BDC8E400298144 /* MetalRice2RenderContext.m in Sources */,
@@ -1113,9 +1145,11 @@
 				3C0A907021BD126900298144 /* Metal2DColRowSumRenderFrame.m in Sources */,
 				3C73F0CC216AAEF300AA8DE8 /* DeltaEncoder.mm in Sources */,
 				3C12391A214B7D22006E5548 /* MetalUtils.metal in Sources */,
+				3C3B5D0B21C32C34002C425D /* MetalRiceRenderContext.m in Sources */,
 				3C0A906A21BD126900298144 /* Metal2DColRowSumRenderContext.m in Sources */,
 				3CD1E7992190D7830075F7A3 /* MetalRice2RenderFrame.m in Sources */,
 				3C0753E221BA2F4A002F4B95 /* InputImageRenderFrame.m in Sources */,
+				3C3B5D1221C32C34002C425D /* MetalRiceRenderFrame.m in Sources */,
 				3C8C9A55216EEF170033615B /* CombinedMetalRiceRenderFrame.m in Sources */,
 				3C123920214B7D84006E5548 /* ColumnRowSum.metal in Sources */,
 				3C73F0D0216AB00500AA8DE8 /* AAPLShaders.metal in Sources */,
@@ -1131,7 +1165,9 @@
 			files = (
 				3C40782B20F305770006EE27 /* Rice.mm in Sources */,
 				3C0753E121BA2F4A002F4B95 /* InputImageRenderFrame.m in Sources */,
+				3C3B5D1321C32C34002C425D /* MetalRiceRenderFrame.m in Sources */,
 				3C73F0C3216AA98900AA8DE8 /* DeltaTests.mm in Sources */,
+				3C3B5D0C21C32C34002C425D /* MetalRiceRenderContext.m in Sources */,
 				3CD1E79A2190D7830075F7A3 /* MetalRice2RenderFrame.m in Sources */,
 				3C8C9A56216EEF170033615B /* CombinedMetalRiceRenderFrame.m in Sources */,
 				3C12391B214B7D22006E5548 /* MetalUtils.metal in Sources */,

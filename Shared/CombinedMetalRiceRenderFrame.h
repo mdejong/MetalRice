@@ -10,16 +10,11 @@
 //@import MetalKit;
 #include <MetalKit/MetalKit.h>
 
-@class MetalRice2RenderFrame;
-//@class Metal2DColRowSumRenderFrame;
+@class MetalRiceRenderFrame;
 @class MetalCropToTextureRenderFrame;
 
 @interface CombinedMetalRiceRenderFrame : NSObject
 
-@property (nonatomic, retain) MetalRice2RenderFrame *metalRiceRenderFrame;
-
-//@property (nonatomic, retain) Metal2DColRowSumRenderFrame *metalRowcolRenderFrame;
-
-@property (nonatomic, retain) MetalCropToTextureRenderFrame *metalCropToTextureRenderFrame;
+@property (nonatomic, retain) MetalRiceRenderFrame *metalRiceRenderFrame;
 
 @end

@@ -27,11 +27,8 @@ Implementation of renderer class which perfoms Metal setup and per frame renderi
 
 #import "MetalRenderContext.h"
 
-#import "MetalRice2RenderContext.h"
-#import "MetalRice2RenderFrame.h"
-
-#import "MetalCropToTextureRenderContext.h"
-#import "MetalCropToTextureRenderFrame.h"
+#import "MetalRiceRenderContext.h"
+#import "MetalRiceRenderFrame.h"
 
 #import "CombinedMetalRiceRenderFrame.h"
 
@@ -46,8 +43,7 @@ const static unsigned int blockDim = RICE_SMALL_BLOCK_DIM;
 
 @property (nonatomic, retain) MetalRenderContext *metalRenderContext;
 
-@property (nonatomic, retain) MetalRice2RenderContext *metalRiceRenderContext;
-@property (nonatomic, retain) MetalCropToTextureRenderContext *metalCropToTextureRenderContext;
+@property (nonatomic, retain) MetalRiceRenderContext *metalRiceRenderContext;
 
 @property (nonatomic, retain) NSMutableArray<CombinedMetalRiceRenderFrame*> *combinedFrames;
 
@@ -381,15 +377,11 @@ blockOptimalKTableData:blockOptimalKTableData
       
       self.metalRenderContext = [[MetalRenderContext alloc] init];
       
-      self.metalRiceRenderContext = [[MetalRice2RenderContext alloc] init];
-      
-      self.metalCropToTextureRenderContext = [[MetalCropToTextureRenderContext alloc] init];
+      self.metalRiceRenderContext = [[MetalRiceRenderContext alloc] init];
       
       [self.metalRenderContext setupMetal:_device];
 
       [self.metalRiceRenderContext setupRenderPipelines:self.metalRenderContext];
-      
-      [self.metalCropToTextureRenderContext setupRenderPipelines:self.metalRenderContext];
       
       self.inFlightSemaphore = dispatch_semaphore_create(MetalRenderContextMaxBuffersInFlight);
       
@@ -399,8 +391,7 @@ blockOptimalKTableData:blockOptimalKTableData
       for (int i = 0; i < MetalRenderContextMaxBuffersInFlight; i++) {
         CombinedMetalRiceRenderFrame *combinedRenderFrame = [[CombinedMetalRiceRenderFrame alloc] init];
         
-        combinedRenderFrame.metalCropToTextureRenderFrame = [[MetalCropToTextureRenderFrame alloc] init];
-        combinedRenderFrame.metalRiceRenderFrame = [[MetalRice2RenderFrame alloc] init];
+        combinedRenderFrame.metalRiceRenderFrame = [[MetalRiceRenderFrame alloc] init];
         
         [self.combinedFrames addObject:combinedRenderFrame];
       }
@@ -503,25 +494,6 @@ blockOptimalKTableData:blockOptimalKTableData
         // int the case that the image is smaller than one big block then
         // additional zero padding is required to adjust to the min block size.
         
-        int bigBlockWidth = renderFrame.renderBlockWidth * blockDim;
-        int bigBlockHeight = renderFrame.renderBlockHeight * blockDim;
-        
-        CGSize renderSize = CGSizeMake(bigBlockWidth, bigBlockHeight);
-        CGSize blockSize = CGSizeMake(blockDim, blockDim);
-        
-        for (int i = 0; i < MetalRenderContextMaxBuffersInFlight; i++) {
-          CombinedMetalRiceRenderFrame *combinedRenderFrame = self.combinedFrames[i];
-          
-          [self.metalRiceRenderContext setupRenderTextures:self.metalRenderContext
-                                                renderSize:renderSize
-                                                 blockSize:blockSize
-                                               renderFrame:combinedRenderFrame.metalRiceRenderFrame];
-        }
-      }
-            
-      // Init crop render frame in terms of 8x8 blocks
-      
-      {
         int width = renderFrame.renderWidth;
         int height = renderFrame.renderHeight;
         
@@ -535,13 +507,11 @@ blockOptimalKTableData:blockOptimalKTableData
         for (int i = 0; i < MetalRenderContextMaxBuffersInFlight; i++) {
           CombinedMetalRiceRenderFrame *combinedRenderFrame = self.combinedFrames[i];
           
-          combinedRenderFrame.metalCropToTextureRenderFrame.inputTexture = combinedRenderFrame.metalRiceRenderFrame.outputTexture;
-          
-          [self.metalCropToTextureRenderContext setupRenderTextures:self.metalRenderContext
-                                                         renderSize:renderSize
-                                                       cropFromSize:cropFromSize
-                                                          blockSize:blockSize
-                                                        renderFrame:combinedRenderFrame.metalCropToTextureRenderFrame];
+          [self.metalRiceRenderContext setupRenderTextures:self.metalRenderContext
+                                                renderSize:renderSize
+                                              cropFromSize:cropFromSize
+                                                 blockSize:blockSize
+                                               renderFrame:combinedRenderFrame.metalRiceRenderFrame];
         }
       }
       
@@ -601,7 +571,7 @@ blockOptimalKTableData:blockOptimalKTableData
 /// Called whenever the view needs to render a frame
 - (void)drawInMTKView:(nonnull MTKView *)view
 {
-  const BOOL debugDisplayFrameNumber = TRUE;
+  const BOOL debugDisplayFrameNumber = FALSE;
   
   CFTimeInterval debugDisplayFrameStartTime;
   
@@ -637,7 +607,6 @@ blockOptimalKTableData:blockOptimalKTableData
   
   assert(combinedRenderFrame);
   assert(combinedRenderFrame.metalRiceRenderFrame);
-  assert(combinedRenderFrame.metalCropToTextureRenderFrame);
   
   // Copy rice encoded bits into Metal buffer
   
@@ -662,6 +631,9 @@ blockOptimalKTableData:blockOptimalKTableData
     
     riceRenderUniformPtr->numBlocksInWidth = blockWidth;
     riceRenderUniformPtr->numBlocksInHeight = blockHeight;
+    
+    riceRenderUniformPtr->cropWidth = self->renderWidth;
+    riceRenderUniformPtr->cropHeight = self->renderHeight;
   }
   
   // Copy block start bit table into current Metal output frame
@@ -723,11 +695,9 @@ blockOptimalKTableData:blockOptimalKTableData
   
   [self.metalRiceRenderContext renderRice:self.metalRenderContext commandBuffer:commandBuffer renderFrame:combinedRenderFrame.metalRiceRenderFrame];
 
-  id<MTLTexture> _render_texture = combinedRenderFrame.metalCropToTextureRenderFrame.outputTexture;
-
-  // Crop copy and expand grayscale values packed into BGRA pixels to BGRA grayscale at 32bpp for each pixel
+  id<MTLTexture> _render_texture = combinedRenderFrame.metalRiceRenderFrame.outputTexture;
   
-  [self.metalCropToTextureRenderContext renderCropToTexture:self.metalRenderContext commandBuffer:commandBuffer renderFrame:combinedRenderFrame.metalCropToTextureRenderFrame];
+  // Crop copy and expand grayscale values packed into BGRA pixels to BGRA grayscale at 32bpp for each pixel
   
   // Render from 32BPP _render_texture into output view
   

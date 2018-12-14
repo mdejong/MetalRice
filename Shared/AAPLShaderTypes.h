@@ -122,6 +122,8 @@ typedef struct
   uint16_t numBlocksInHeight;
   uint16_t numBlocksEachSegment;
   uint16_t dummy1;
+  uint16_t cropWidth;
+  uint16_t cropHeight;
 } RiceRenderUniform;
 
 #define RICE_LARGE_BLOCK_DIM 32
